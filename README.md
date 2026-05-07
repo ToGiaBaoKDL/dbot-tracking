@@ -8,7 +8,7 @@ Monorepo tracking DBOT stock buy/sell signals with daily ETL.
 flowchart LR
     User["Browser"]
     subgraph Frontend
-        Next["Next.js 15"]
+        Next["Next.js 16"]
     end
     subgraph Backend
         API["FastAPI"]
@@ -41,23 +41,33 @@ flowchart LR
 cp .env.example .env
 # Edit .env — set SECRET_KEY and NEXTAUTH_SECRET
 
-# 2. Start all services
-docker compose up -d
+# 2. Start infrastructure (Postgres + Backend + Airflow)
+make up
 
-# 3. Create first user
+# 3. Rebuild backend image if dependencies changed
+make rebuild-backend
+
+# 4. Create first user
 curl -X POST http://localhost:8000/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"your-password"}'
 
-# 4. Set DBOT token (get from browser DevTools)
+# 5. Set DBOT token (get from browser DevTools)
 curl -X PATCH http://localhost:8000/api/v1/admin/dbot-token \
   -H "Authorization: Bearer <JWT_FROM_LOGIN>" \
   -H "Content-Type: application/json" \
   -d '{"token":"<DBOT_BEARER_TOKEN>"}'
 
-# 5. Open Airflow UI, trigger initial dump
+# 6. Open Airflow UI, trigger initial dump
 open http://localhost:8080  # admin / admin
 # DAGs → etl_local_initial_dump → Trigger DAG
+
+# 7. Start frontend (in a new terminal)
+cd frontend
+cp .env.example .env  # set NEXT_PUBLIC_API_URL=http://localhost:8000
+npm install
+npm run dev
+# Open http://localhost:3000
 ```
 
 ## ETL Architecture
@@ -83,25 +93,28 @@ Mỗi DAG task = `DockerOperator` pull image `toilachuoituyet/dbot-backend:lates
 ├── backend/              FastAPI + SQLAlchemy 2.0 + Pydantic v2
 │   ├── app/
 │   │   ├── api/          API routes
-│   │   ├── core/         Config, DB, Security
+│   │   ├── core/         Config, DB, Security, Encryption
 │   │   ├── etl/          Shared ETL module (sync DB + crawler)
 │   │   ├── models/       SQLAlchemy models
 │   │   ├── repositories/ DB access layer
 │   │   ├── schemas/      Pydantic schemas
 │   │   └── services/     Business logic
 │   ├── scripts/          Standalone ETL scripts
-│   ├── tests/            pytest 22 tests
+│   ├── tests/            pytest
 │   └── Dockerfile        Multi-stage build
 ├── airflow/              Airflow 2.11.2 + DockerOperator
 │   └── dags/             DAG definitions only
-├── frontend/             Next.js 15 + shadcn/ui
+├── frontend/             Next.js 16 + React 19 + Tailwind CSS 4
+│   ├── app/              App Router pages
+│   ├── components/       UI components (Button, Input, Card, Badge)
+│   ├── features/         Feature modules (signals dashboard)
+│   └── lib/              Utilities, API client, schemas, auth
 ├── docker/
 │   └── postgres/
 │       └── init.sql      Auto-create airflow DB
 ├── docker-compose.yml    Local dev
 ├── docker-compose.swarm.yml  Production Swarm
-├── scripts/
-│   └── deploy-swarm.sh   Deploy script
+├── Makefile              Dev commands
 └── .github/workflows/
     └── ci-cd.yml         Build + push Docker image
 ```
@@ -112,7 +125,7 @@ Mỗi DAG task = `DockerOperator` pull image `toilachuoituyet/dbot-backend:lates
 |---------|-----|-------|
 | Backend API | http://localhost:8000 | Auto-migrates on start |
 | Airflow UI | http://localhost:8080 | Login: admin / admin |
-| Frontend | http://localhost:3000 | Run `pnpm dev` separately |
+| Frontend | http://localhost:3000 | Run `npm run dev` separately |
 | PostgreSQL | localhost:5432 | DBs: `stock_signals`, `airflow` |
 
 ## Environment Variables
@@ -123,21 +136,25 @@ Copy `.env.example` to `.env` and fill in:
 |----------|----------|-----------------|
 | `SECRET_KEY` | Yes | `python3 -c "import secrets; print(secrets.token_urlsafe(48))"` |
 | `NEXTAUTH_SECRET` | Yes | `openssl rand -base64 32` |
+| `DATABASE_URL` | Yes | `postgresql+asyncpg://postgres:postgres@localhost:5432/stock_signals` |
 
 ## Development Commands
 
 ```bash
-# Start all services
+# Start all services (postgres, backend, airflow)
 make up
 
 # Stop all services
 make down
 
+# Rebuild backend image after dependency changes
+make rebuild-backend
+
 # Backend only (local, needs postgres running)
 make dev-backend
 
 # Frontend only (local)
-cd frontend && pnpm dev
+cd frontend && npm run dev
 
 # Backend tests
 make test-backend
@@ -151,15 +168,30 @@ make migrate m="add new table"
 make init-db
 ```
 
+## Dark Mode
+
+Click the **Moon/Sun** icon in the top-right header (main page) or sidebar bottom (admin pages).
+
+- Theme preference is persisted in `localStorage`
+- Respects system `prefers-color-scheme` on first visit
+- All colors use semantic CSS variables — no hardcoded Tailwind colors
+
 ## CI/CD
 
-Mỗi push lên `main` branch:
+### Trigger Rules
+
+CI chỉ chạy khi:
+- Push lên `main` **và** commit message bắt đầu bằng: `feat:`, `fix:`, `refactor:`, `perf:`, `test:`, `build:`, `ci:`, `docs:`
+- **Hoặc** bất kỳ Pull Request nào
+- **Và** file thay đổi nằm trong `backend/**` hoặc `.github/workflows/ci-cd.yml`
+
+### Workflow
 
 1. **Test**: Run ruff + pytest
 2. **Build**: Build backend Docker image (multi-stage)
 3. **Push**: Push `toilachuoituyet/dbot-backend:latest` + `YYYYMMDD-<sha>` tags lên Docker Hub
 
-**Setup GitHub Actions:**
+### Setup GitHub Actions
 
 1. Fork/push repo lên GitHub
 2. Vào **Settings → Secrets and variables → Actions**:
@@ -184,9 +216,11 @@ docker service logs dbot-tracking_backend -f
 ## Auth Flow
 
 1. Register via `POST /api/v1/auth/register`
-2. Login via `POST /api/v1/auth/login` → returns JWT
-3. Frontend stores JWT via NextAuth (httpOnly cookie)
+2. Login via `POST /api/v1/auth/login` → returns JWT (4h expiry)
+3. Frontend stores JWT via NextAuth (httpOnly cookie) with expiry tracking
 4. All API calls include `Authorization: Bearer <token>`
+5. Middleware auto-redirects to `/login` when JWT expires
+6. Non-admin users are blocked from `/admin/*` routes
 
 ## Setting Up DBOT Token
 
@@ -218,16 +252,20 @@ docker service logs dbot-tracking_backend -f
 | GET | `/api/v1/auth/me` | Bearer JWT |
 | GET | `/api/v1/stocks` | Bearer JWT |
 | GET | `/api/v1/signals?date=YYYY-MM-DD&future_days=N` | Bearer JWT |
-| PATCH | `/api/v1/admin/dbot-token` | Bearer JWT |
+| PATCH | `/api/v1/admin/dbot-token` | Bearer JWT + Admin |
+| GET | `/api/v1/admin/users` | Bearer JWT + Admin |
+| POST | `/api/v1/admin/users` | Bearer JWT + Admin |
+| PATCH | `/api/v1/admin/users/{id}` | Bearer JWT + Admin |
 
 ## Tech Stack
 
 | Layer | Tech |
 |-------|------|
 | Database | PostgreSQL 16 |
-| Backend | FastAPI, SQLAlchemy 2.0 (async), Pydantic v2, Alembic |
+| Backend | FastAPI, SQLAlchemy 2.0 (async), Pydantic v2, Alembic, PyJWT |
 | ETL | Airflow 2.11.2, DockerOperator, httpx |
-| Frontend | Next.js 15, React 19, Tailwind CSS, TanStack Table, SWR, React Hook Form + Zod, NextAuth v4 |
+| Frontend | Next.js 16, React 19, Tailwind CSS 4, TanStack Table, SWR, React Hook Form + Zod, NextAuth v4 |
+| UI | Custom semantic components (Button, Input, Card, Badge) |
 | CI/CD | GitHub Actions, Docker Hub |
 | Deploy | Docker Swarm |
 
@@ -238,3 +276,5 @@ docker service logs dbot-tracking_backend -f
 - Daily ETL runs at 15:00 Vietnam time (Mon-Fri).
 - `future_days` accepts 1-14.
 - Backend image is multi-stage build for minimal size.
+- Admin users cannot deactivate their own account.
+- All frontend colors use semantic CSS variables — dark mode supported out of the box.
