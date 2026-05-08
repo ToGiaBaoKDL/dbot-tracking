@@ -4,6 +4,7 @@ import os
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-pytest-only")
 os.environ.setdefault("BACKEND_HOST", "0.0.0.0")
 os.environ.setdefault("BACKEND_PORT", "8000")
+os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 
 from collections.abc import AsyncGenerator
 
@@ -88,3 +89,24 @@ async def auth_token(client: AsyncClient) -> str:
 @pytest_asyncio.fixture
 async def auth_headers(auth_token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {auth_token}"}
+
+
+@pytest_asyncio.fixture
+async def admin_auth_headers(client: AsyncClient, db_session: AsyncSession) -> dict[str, str]:
+    """Register a user and promote to admin for admin-only endpoint tests."""
+    await client.post(
+        "/api/v1/auth/register",
+        json={"username": "adminuser", "password": "adminpass123"},
+    )
+    from app.repositories.user_repo import UserRepository
+
+    repo = UserRepository(db_session)
+    user = await repo.get_by_username("adminuser")
+    user.is_admin = True
+    await repo.update(user)
+
+    res = await client.post(
+        "/api/v1/auth/login",
+        json={"username": "adminuser", "password": "adminpass123"},
+    )
+    return {"Authorization": f"Bearer {res.json()['access_token']}"}

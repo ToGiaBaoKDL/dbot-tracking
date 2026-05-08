@@ -88,6 +88,3 @@ class UserListItem(BaseModel):
 
 class UserToggleActive(BaseModel):
     is_active: bool
-
-
-

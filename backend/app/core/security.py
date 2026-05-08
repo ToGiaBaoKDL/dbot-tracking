@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import jwt
@@ -43,7 +43,7 @@ def create_access_token(
     """Create JWT and return (token_string, expires_at)."""
     settings = get_settings()
     to_encode = data.copy()
-    now = datetime.now(datetime.UTC)
+    now = datetime.now(UTC)
     expire = now + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
     to_encode.update(
         {

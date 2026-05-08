@@ -2,11 +2,15 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc libpq-dev \
+    gcc libpq-dev curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
+
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e "."
+RUN uv pip install --system -e "."
 
 FROM python:3.12-slim
 WORKDIR /app
@@ -14,6 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy uv + installed packages from builder
+COPY --from=builder /root/.local /root/.local
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY . .

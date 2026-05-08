@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    model_config = ConfigDict(env_file=".env", case_sensitive=False)
+    model_config = ConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
     # Database — no default to fail loud if not set
     database_url: str

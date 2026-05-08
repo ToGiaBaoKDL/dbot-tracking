@@ -3,11 +3,11 @@ from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_update_dbot_token(client: AsyncClient, auth_headers: dict[str, str]):
+async def test_update_dbot_token(client: AsyncClient, admin_auth_headers: dict[str, str]):
     res = await client.patch(
         "/api/v1/admin/dbot-token",
         json={"token": "test-bearer-token-12345"},
-        headers=auth_headers,
+        headers=admin_auth_headers,
     )
     assert res.status_code == 200
     data = res.json()
@@ -18,15 +18,15 @@ async def test_update_dbot_token(client: AsyncClient, auth_headers: dict[str, st
 
 
 @pytest.mark.asyncio
-async def test_get_dbot_token(client: AsyncClient, auth_headers: dict[str, str]):
+async def test_get_dbot_token(client: AsyncClient, admin_auth_headers: dict[str, str]):
     # First update
     await client.patch(
         "/api/v1/admin/dbot-token",
         json={"token": "test-bearer-token-12345"},
-        headers=auth_headers,
+        headers=admin_auth_headers,
     )
 
-    res = await client.get("/api/v1/admin/dbot-token", headers=auth_headers)
+    res = await client.get("/api/v1/admin/dbot-token", headers=admin_auth_headers)
     assert res.status_code == 200
     data = res.json()
     assert "id" in data
@@ -34,8 +34,8 @@ async def test_get_dbot_token(client: AsyncClient, auth_headers: dict[str, str])
 
 
 @pytest.mark.asyncio
-async def test_get_dbot_token_empty(client: AsyncClient, auth_headers: dict[str, str]):
-    res = await client.get("/api/v1/admin/dbot-token", headers=auth_headers)
+async def test_get_dbot_token_empty(client: AsyncClient, admin_auth_headers: dict[str, str]):
+    res = await client.get("/api/v1/admin/dbot-token", headers=admin_auth_headers)
     assert res.status_code == 200
     assert res.json() == {"message": "No token configured"}
 
@@ -50,11 +50,13 @@ async def test_update_dbot_token_unauthorized(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_update_dbot_token_with_expires_at(client: AsyncClient, auth_headers: dict[str, str]):
+async def test_update_dbot_token_with_expires_at(
+    client: AsyncClient, admin_auth_headers: dict[str, str]
+):
     res = await client.patch(
         "/api/v1/admin/dbot-token",
         json={"token": "test-bearer-token-12345", "expires_at": "2025-12-31"},
-        headers=auth_headers,
+        headers=admin_auth_headers,
     )
     assert res.status_code == 200
     data = res.json()
@@ -62,10 +64,12 @@ async def test_update_dbot_token_with_expires_at(client: AsyncClient, auth_heade
 
 
 @pytest.mark.asyncio
-async def test_update_dbot_token_invalid_body(client: AsyncClient, auth_headers: dict[str, str]):
+async def test_update_dbot_token_invalid_body(
+    client: AsyncClient, admin_auth_headers: dict[str, str]
+):
     res = await client.patch(
         "/api/v1/admin/dbot-token",
         json={"token": "short"},
-        headers=auth_headers,
+        headers=admin_auth_headers,
     )
     assert res.status_code == 422

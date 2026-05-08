@@ -34,15 +34,6 @@ ENV_MOUNT = Mount(
     read_only=True,
 )
 
-# Prevent Jinja from rendering the mounts field — Mount objects contain
-# strings like '/app/.env' which Jinja treats as absolute template paths.
-JINJA_SAFE_TEMPLATE_FIELDS = (
-    "image",
-    "command",
-    "docker_url",
-    "environment",
-    "container_name",
-)
 
 with DAG(
     dag_id=dag_id,
@@ -54,9 +45,8 @@ with DAG(
     max_active_runs=1,
     tags=["dbot", "etl", "initial"],
 ) as dag:
-    DockerOperator(
+    task = DockerOperator(
         task_id="run_initial_dump",
-        template_fields=JINJA_SAFE_TEMPLATE_FIELDS,
         image=IMAGE,
         command="python scripts/etl_initial.py",
         docker_url="unix://var/run/docker.sock",
@@ -64,4 +54,13 @@ with DAG(
         mounts=[ENV_MOUNT],
         auto_remove="success",
         execution_timeout=timedelta(hours=2),
+    )
+    # Prevent Jinja from rendering mounts — absolute paths like '/app/.env'
+    # are treated as template file paths and raise TemplateNotFound.
+    task.template_fields = (
+        "image",
+        "command",
+        "docker_url",
+        "environment",
+        "container_name",
     )

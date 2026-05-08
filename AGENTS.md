@@ -10,7 +10,7 @@ Monorepo tracking DBOT stock buy/sell signals with daily ETL.
 flowchart LR
     User["Browser"]
     subgraph Frontend
-        Next["Next.js 15"]
+        Next["Next.js 16"]
     end
     subgraph Backend
         API["FastAPI"]
@@ -43,29 +43,6 @@ flowchart LR
 | Airflow 2 | ETL Orchestrator | 8080 |
 | Next.js | Frontend | 3000 |
 
-## Quick Start
-
-```bash
-cp .env.example .env
-# Edit .env — set SECRET_KEY and NEXTAUTH_SECRET
-# Generate SECRET_KEY: python3 -c "import secrets; print(secrets.token_urlsafe(48))"
-# Generate NEXTAUTH_SECRET: openssl rand -base64 32
-
-docker compose up -d
-# or: make up
-```
-
-## API Endpoints
-
-| Method | Path | Auth |
-|--------|------|------|
-| POST | `/api/v1/auth/register` | No |
-| POST | `/api/v1/auth/login` | No |
-| GET | `/api/v1/auth/me` | Bearer JWT |
-| GET | `/api/v1/stocks` | Bearer JWT |
-| GET | `/api/v1/signals?date=YYYY-MM-DD&future_days=N` | Bearer JWT |
-| PATCH | `/api/v1/admin/dbot-token` | Bearer JWT + Admin |
-
 ## Database Schema
 
 - `users` — App users (username/password), `is_admin` flag
@@ -77,8 +54,10 @@ docker compose up -d
 
 Naming convention: `[job_type]_[worker_type]_[description].py`
 
-- `etl_local_initial_dump.py` — One-time historical data backfill (manual trigger)
-- `etl_local_daily_dbot.py` — Daily ETL at 15:00 Mon-Fri
+- **Initial dump DAG** — One-time historical data backfill (manual trigger, ~2h timeout)
+- **Daily ETL DAG** — Daily ETL at 15:00 Mon–Fri (~30min timeout)
+
+Both DAGs use `DockerOperator` pulling `toilachuoituyet/dbot-backend:latest` and run scripts inside the container. Zero business logic in DAGs.
 
 ### Setting up DBOT Token
 
@@ -87,20 +66,48 @@ Naming convention: `[job_type]_[worker_type]_[description].py`
 3. `PATCH /api/v1/admin/dbot-token` with `{"token": "..."}` (admin only)
 4. Or insert directly into `dbot_token` table
 
+## Auth Flow
+
+1. User logs in via `/login` (NextAuth Credentials)
+2. Backend validates username/password (bcrypt) → returns JWT (4h expiry)
+3. Frontend stores JWT via NextAuth (httpOnly cookie) with expiry tracking
+4. All API calls include `Authorization: Bearer <token>`
+5. Middleware + client auto-redirect to `/login` when JWT expires
+6. Non-admin users are blocked from `/admin/*` routes at the frontend middleware level
+
 ## Development Commands
 
+### Backend Setup (uv + Python 3.11)
+
 ```bash
-# Start all services
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create virtual environment with Python 3.11
+cd backend
+uv venv --python 3.11
+
+# Install dependencies
+uv pip install -e ".[dev]"
+```
+
+### Common Commands
+
+```bash
+# Start all services (postgres, backend, airflow)
 make up
 
 # Stop all services
 make down
 
+# Rebuild backend image after dependency changes
+make rebuild-backend
+
 # Backend only (local, needs postgres running)
 make dev-backend
 
 # Frontend only (local)
-cd frontend && pnpm dev
+cd frontend && npm run dev
 
 # Backend tests
 make test-backend
@@ -114,26 +121,6 @@ make migrate m="description"
 make init-db
 ```
 
-## Auth Flow
-
-1. User logs in via `/login` (NextAuth Credentials)
-2. Backend validates username/password (bcrypt) → returns JWT (4h expiry)
-3. Frontend stores JWT via NextAuth (httpOnly cookie) with expiry tracking
-4. All API calls include `Authorization: Bearer <token>`
-5. Middleware + client auto-redirect to `/login` when JWT expires
-
-## Important Notes
-
-- DBOT token expires ~7 days. Update via admin API when expired.
-- Initial dump DAG must be triggered manually from Airflow UI.
-- Daily ETL runs at 15:00 Vietnam time (Mon-Fri).
-- Index symbols (VNINDEX, VNXALL, etc.) are filtered out automatically.
-- Signal for a stock on a given day can be `NULL` (no signal), `BUY`, or `SELL`.
-- Admin users cannot deactivate their own account (protected API).
-- Non-admin users are blocked from `/admin/*` routes at the frontend middleware level.
-- Swarm deploy uses Docker secrets for `SECRET_KEY` and `POSTGRES_PASSWORD`.
-- Backend image (`dbot-backend:latest`) is single source of truth for both API and ETL.
-
 ## Tech Stack & Best Practices
 
 ### Backend
@@ -141,16 +128,18 @@ make init-db
 - **Repository Pattern**: 1 file per repository class
 - **Service Layer**: Business logic + transaction management
 - **Security**: JWT with `iss`/`aud`/`iat`/`jti` claims (PyJWT), bcrypt password hashing, Fernet encryption for DBOT token
-- **Ruff**: Lint + format with `E,F,I,N,W,UP,B,C4,SIM,ARG` rules
+- **Ruff**: Lint + format with `E,F,I,N,W,UP,B,C4,SIM,ARG` rules, target Python 3.11
 - **Logging**: Structured `[timestamp] [level] message` via `logging` module
+- **Package manager**: `uv` (no pip, no requirements.txt, no poetry)
 
 ### Frontend
-- **Next.js 15** App Router + **React 19**
-- **Tailwind CSS** for styling
+- **Next.js 16** App Router + **React 19**
+- **Tailwind CSS 4** for styling
 - **TanStack Table** for data tables
 - **SWR** for client-side data fetching (caching, dedup, error retry)
 - **React Hook Form** + **Zod** for form validation
 - **NextAuth.js v4** with Credentials provider + JWT expiry tracking
+- **UI**: Semantic CSS variables (`bg-background`, `text-foreground`, etc.), zero hardcoded Tailwind colors
 
 ### Airflow
 - **Airflow 2.11.2** with LocalExecutor
@@ -172,23 +161,24 @@ make init-db
 │   │   ├── schemas/      Pydantic v2 schemas + validation
 │   │   └── services/     Business logic (Auth, Stock, Signal, Token)
 │   ├── scripts/          Standalone ETL scripts (daily, initial)
-│   ├── alembic/          DB migrations (001, 002, 003)
-│   └── Dockerfile        Multi-stage build
+│   ├── tests/            pytest (async, SQLite in-memory)
+│   ├── alembic/          DB migrations
+│   ├── pyproject.toml    setuptools + uv config
+│   ├── uv.lock           Reproducible dependency lock
+│   └── Dockerfile        Multi-stage build (uv + python 3.12)
 ├── airflow/
 │   ├── dags/             DAG definitions (self-contained, no shared config)
-│   │   ├── etl_local_initial_dump.py
-│   │   └── etl_local_daily_dbot.py
 │   └── Dockerfile        Airflow 2.11.2 + providers
 ├── frontend/
 │   ├── app/              Next.js App Router
 │   │   ├── api/auth/     NextAuth API route
 │   │   ├── login/        Login page (RHF + Zod)
+│   │   ├── admin/        Admin pages (token, users)
 │   │   ├── loading.tsx   Loading UI
 │   │   ├── error.tsx     Error boundary
 │   │   └── not-found.tsx 404 page
-│   ├── components/       UI components
-│   ├── features/
-│   │   └── signals/      Dashboard + TanStack Table
+│   ├── components/       UI components (Button, Input, Card, Badge)
+│   ├── features/         Feature modules (signals dashboard)
 │   ├── lib/              Shared utilities (api client, auth, schemas)
 │   └── types/            TypeScript type definitions
 ├── docker/
@@ -196,8 +186,9 @@ make init-db
 │       └── init.sql      Auto-create airflow DB
 ├── docker-compose.yml        Local dev
 ├── docker-compose.swarm.yml  Production Swarm
-├── Makefile                  Dev commands
-├── .env.example              Required env vars template
+├── Makefile                  Dev commands (uv + npm)
+├── .env.example              Root env vars (DB, backend, airflow)
+├── frontend/.env.example     Frontend env vars (NEXT_PUBLIC_*, NEXTAUTH_*)
 └── .github/workflows/
     └── ci-cd.yml             Build + push Docker image
 ```
@@ -215,3 +206,16 @@ make init-db
 | Backend API | `dbot-backend` | `[2026-05-07 10:00:00] [INFO] GET /api/v1/signals — 200 (45.23ms)` |
 | ETL Scripts | `dbot-etl` | `[2026-05-07 15:00:00] [INFO] Daily ETL completed: 875 records` |
 | Frontend | `[CLIENT]` prefix | `[CLIENT] Signals fetch error: ...` |
+
+## Important Notes
+
+- DBOT token expires ~7 days. Update via admin API when expired.
+- Initial dump DAG must be triggered manually from Airflow UI.
+- Daily ETL runs at 15:00 Vietnam time (Mon–Fri).
+- Index symbols (VNINDEX, VNXALL, etc.) are filtered out automatically.
+- Signal for a stock on a given day can be `NULL` (no signal), `BUY`, or `SELL`.
+- Admin users cannot deactivate their own account (protected API).
+- Non-admin users are blocked from `/admin/*` routes at the frontend middleware level.
+- Swarm deploy uses Docker secrets for `SECRET_KEY` and `POSTGRES_PASSWORD`.
+- Backend image (`dbot-backend:latest`) is single source of truth for both API and ETL.
+- Local dev uses `uv` for Python dependency management; Docker image also uses `uv pip install`.

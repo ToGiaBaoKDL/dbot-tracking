@@ -2,13 +2,14 @@ import logging
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.router import router as api_router
 from app.core.config import get_settings
-from app.core.database import _get_engine, dispose_engine
+from app.core.database import dispose_engine, get_db
 
 settings = get_settings()
 
@@ -63,11 +64,9 @@ app.include_router(api_router)
 
 
 @app.get("/health")
-async def health_check():
+async def health_check(db: AsyncSession = Depends(get_db)):
     try:
-        engine = _get_engine()
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
+        await db.execute(text("SELECT 1"))
         return {"status": "ok", "database": "connected"}
     except Exception:
         return {"status": "error", "database": "disconnected"}

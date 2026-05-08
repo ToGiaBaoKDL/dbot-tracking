@@ -169,9 +169,7 @@ class DbotTokenService:
     async def update(self, token: str, expires_at: date | None = None) -> dict:
         expires_dt = None
         if expires_at:
-            expires_dt = datetime.combine(
-                expires_at, datetime.min.time()
-            ).replace(tzinfo=UTC)
+            expires_dt = datetime.combine(expires_at, datetime.min.time()).replace(tzinfo=UTC)
         encrypted = encrypt_value(token)
         new_token = await self.token_repo.create_or_update(encrypted, expires_dt)
         return _serialize_token(new_token, raw_token=token)
