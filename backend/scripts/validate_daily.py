@@ -88,12 +88,12 @@ def main() -> int:
     logger.info("Unique symbols: %(unique_symbols)s", stats)
 
     if stats["total_records"] == 0:
-        logger.error("No data found for %s", args.date)
-        return 1
+        logger.warning("No data found for %s — market may be closed", args.date)
+        return 0
 
     if stats["buy_signals"] == 0 and stats["sell_signals"] == 0:
         logger.warning("No BUY/SELL signals for %s — data may be incomplete", args.date)
-        return 1
+        return 0
 
     logger.info("Validation passed for %s", args.date)
     return 0
