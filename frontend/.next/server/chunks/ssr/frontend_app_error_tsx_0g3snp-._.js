@@ -1,3 +1,0 @@
-module.exports=[12538,a=>{"use strict";var b=a.i(57850),c=a.i(45056);a.s(["default",0,function({error:a,reset:d}){return(0,c.useEffect)(()=>{console.error("[CLIENT] Page error:",a.message)},[a]),(0,b.jsx)("div",{className:"flex h-screen items-center justify-center bg-background",children:(0,b.jsxs)("div",{className:"text-center",children:[(0,b.jsx)("h2",{className:"text-xl font-bold text-destructive",children:"Đã xảy ra lỗi"}),(0,b.jsx)("p",{className:"mt-2 text-muted-foreground",children:a.message}),(0,b.jsx)("button",{onClick:d,className:"mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90",children:"Thử lại"})]})})}])}];
-
-//# sourceMappingURL=frontend_app_error_tsx_0g3snp-._.js.map

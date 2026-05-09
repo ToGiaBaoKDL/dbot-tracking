@@ -26,7 +26,6 @@ def build_daily_upsert_stmt(records: list[dict]):
             "volume": stmt.excluded.volume,
             "prev_price": stmt.excluded.prev_price,
             "signal": stmt.excluded.signal,
-            "source_id": stmt.excluded.source_id,
             "updated_at": func.now(),
         },
     )

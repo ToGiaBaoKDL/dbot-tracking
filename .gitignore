@@ -16,6 +16,7 @@ node_modules/
 .pnpm-store/
 dist/
 build/
+.next/
 .DS_Store
 *.log
 .vscode/
