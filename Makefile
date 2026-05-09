@@ -42,6 +42,14 @@ rebuild-backend:
 	docker compose build --no-cache backend
 	docker compose up -d backend
 
+build-push-backend:
+	docker compose build backend
+	docker push ${DBOT_BACKEND_IMAGE}
+
+build-push-backend-no-cache:
+	docker compose build --no-cache backend
+	docker push ${DBOT_BACKEND_IMAGE}
+
 clean-docker:
 	docker compose down -v --remove-orphans
 	docker system prune -f

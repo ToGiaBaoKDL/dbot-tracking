@@ -22,6 +22,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: ${DBOT_BACKEND_IMAGE:-toilachuoituyet/dbot-backend:latest}
     container_name: dbot-backend
     restart: unless-stopped
     init: true
@@ -59,6 +60,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
       SECRET_KEY: ${SECRET_KEY}
+      DBOT_BACKEND_IMAGE: ${DBOT_BACKEND_IMAGE:-toilachuoituyet/dbot-backend:latest}
       AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN}
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"

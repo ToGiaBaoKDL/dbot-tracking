@@ -25,7 +25,7 @@ _DEFAULT_ARGS = {
 }
 
 _NETWORK_NAME = os.environ.get("DBOT_DOCKER_NETWORK", "dbot-tracking_default")
-_IMAGE = "toilachuoituyet/dbot-backend:latest"
+_IMAGE = os.environ.get("DBOT_BACKEND_IMAGE", "toilachuoituyet/dbot-backend:latest")
 _ETL_ENV = {
     "DATABASE_URL": os.environ.get("DATABASE_URL", ""),
     "SECRET_KEY": os.environ.get("SECRET_KEY", ""),
