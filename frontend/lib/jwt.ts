@@ -1,5 +1,3 @@
-"use client"
-
 export function decodeJwtPayload<T = Record<string, unknown>>(
   token: string
 ): T | null {

@@ -55,7 +55,8 @@ export const authOptions: NextAuthOptions = {
             accessTokenExpires: expiresAt,
             isAdmin: payload?.is_admin ?? false,
           }
-        } catch {
+        } catch (err) {
+          console.error("[AUTH] Login failed:", err instanceof Error ? err.message : err)
           return null
         } finally {
           clearTimeout(timeoutId)

@@ -36,8 +36,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         className={`fixed inset-y-0 left-0 z-50 flex w-64 transform flex-col border-r border-border bg-card transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
-        aria-hidden={!isMobileMenuOpen}
-        inert={!isMobileMenuOpen}
+
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
           <Link href="/" className="flex items-center gap-2 text-lg font-bold text-card-foreground">
