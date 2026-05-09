@@ -24,16 +24,7 @@ jobs:
     defaults:
       run:
         working-directory: ./backend
-    if: |
-      startsWith(github.event.head_commit.message, 'feat:') ||
-      startsWith(github.event.head_commit.message, 'fix:') ||
-      startsWith(github.event.head_commit.message, 'refactor:') ||
-      startsWith(github.event.head_commit.message, 'perf:') ||
-      startsWith(github.event.head_commit.message, 'test:') ||
-      startsWith(github.event.head_commit.message, 'build:') ||
-      startsWith(github.event.head_commit.message, 'ci:') ||
-      startsWith(github.event.head_commit.message, 'docs:') ||
-      github.event_name == 'pull_request'
+
     steps:
       - uses: actions/checkout@v4
 
@@ -68,15 +59,7 @@ jobs:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
     needs: test-backend
-    if: |
-      github.ref == 'refs/heads/main' && (
-        startsWith(github.event.head_commit.message, 'feat:') ||
-        startsWith(github.event.head_commit.message, 'fix:') ||
-        startsWith(github.event.head_commit.message, 'refactor:') ||
-        startsWith(github.event.head_commit.message, 'perf:') ||
-        startsWith(github.event.head_commit.message, 'build:') ||
-        startsWith(github.event.head_commit.message, 'ci:')
-      )
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
 

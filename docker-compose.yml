@@ -89,6 +89,7 @@ services:
       bash -c "
         airflow db migrate
         airflow users list | grep -q '${AIRFLOW_ADMIN_USER:-admin}' || airflow users create --username '${AIRFLOW_ADMIN_USER:-admin}' --password '${AIRFLOW_ADMIN_PASSWORD:-admin}' --firstname Admin --lastname User --role Admin --email admin@example.com
+        rm -f /opt/airflow/airflow-webserver.pid
         airflow webserver &
         airflow scheduler &
         wait
