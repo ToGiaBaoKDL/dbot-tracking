@@ -6,12 +6,20 @@ if (!API_URL) {
   throw new Error("NEXT_PUBLIC_API_URL is not set")
 }
 
+const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET
+if (!NEXTAUTH_SECRET) {
+  throw new Error("NEXTAUTH_SECRET is not set")
+}
+
 function decodeJwtPayload(token: string): { exp?: number; is_admin?: boolean } | null {
   try {
     const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")
     const pad = 4 - (base64.length % 4)
     const padded = pad === 4 ? base64 : base64 + "=".repeat(pad)
-    const json = atob(padded)
+    const bytes = Uint8Array.from(
+      atob(padded).split("").map((c) => c.charCodeAt(0))
+    )
+    const json = new TextDecoder().decode(bytes)
     return JSON.parse(json)
   } catch {
     return null
@@ -31,6 +39,8 @@ export const authOptions: NextAuthOptions = {
 
         const username = credentials.username.trim().toLowerCase()
 
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000)
         try {
           const res = await fetch(`${API_URL}/api/v1/auth/login`, {
             method: "POST",
@@ -39,6 +49,7 @@ export const authOptions: NextAuthOptions = {
               username,
               password: credentials.password,
             }),
+            signal: controller.signal,
           })
 
           if (!res.ok) return null
@@ -58,6 +69,8 @@ export const authOptions: NextAuthOptions = {
           }
         } catch {
           return null
+        } finally {
+          clearTimeout(timeoutId)
         }
       },
     }),
@@ -97,5 +110,5 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: NEXTAUTH_SECRET,
 }

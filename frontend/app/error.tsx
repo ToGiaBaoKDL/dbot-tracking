@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
+import { Button } from "@/components/ui/button"
 
 export default function Error({
   error,
@@ -18,12 +19,9 @@ export default function Error({
       <div className="text-center">
         <h2 className="text-xl font-bold text-destructive">Đã xảy ra lỗi</h2>
         <p className="mt-2 text-muted-foreground">Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.</p>
-        <button
-          onClick={reset}
-          className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
+        <Button onClick={reset} className="mt-4">
           Thử lại
-        </button>
+        </Button>
       </div>
     </div>
   )

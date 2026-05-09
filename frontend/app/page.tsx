@@ -1,39 +1,28 @@
 "use client"
 
+import { useEffect } from "react"
 import { useSession, signOut } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { SignalsDashboard } from "@/features/signals/signals-dashboard"
 import { Shield, Moon, Sun } from "lucide-react"
-import { toggleTheme } from "@/components/theme-provider"
-import { useState, useEffect } from "react"
+import { useThemeToggle } from "@/lib/hooks"
 
 export default function HomePage() {
   const { data: session, status } = useSession()
-  const [isDark, setIsDark] = useState(false)
+  const router = useRouter()
+  const { isDark, handleToggle } = useThemeToggle()
 
   useEffect(() => {
-    setIsDark(document.documentElement.classList.contains("dark"))
-  }, [])
+    if (status === "unauthenticated") {
+      router.push("/login")
+    }
+  }, [status, router])
 
-  const handleToggle = () => {
-    toggleTheme()
-    setIsDark((prev) => !prev)
-  }
-
-  if (status === "loading") {
+  if (status === "loading" || status === "unauthenticated" || !session?.accessToken) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="animate-pulse text-lg text-muted-foreground">Đang tải...</div>
-      </div>
-    )
-  }
-
-  if (status === "unauthenticated" || !session?.accessToken) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="text-center">
-          <p className="text-muted-foreground">Đang chuyển hướng...</p>
-        </div>
       </div>
     )
   }
@@ -42,21 +31,22 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card px-6 py-4">
+      <header className="border-b border-border bg-card px-4 py-3 sm:px-6 sm:py-4">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <h1 className="text-xl font-bold text-card-foreground">DBOT Signals Tracker</h1>
-          <div className="flex items-center gap-4">
+          <h1 className="text-lg font-bold text-card-foreground sm:text-xl">DBOT Signals Tracker</h1>
+          <div className="flex items-center gap-2 sm:gap-4">
             {isAdmin && (
               <Link
                 href="/admin/token"
-                className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground hover:bg-accent/80"
+                className="flex items-center gap-1.5 rounded-md bg-accent px-2 py-1.5 text-xs font-medium text-accent-foreground hover:bg-accent/80 sm:px-3 sm:text-sm"
               >
-                <Shield className="h-4 w-4" />
-                Admin
+                <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Admin</span>
               </Link>
             )}
-            <span className="text-sm text-muted-foreground">{session?.user?.name}</span>
+            <span className="hidden text-sm text-muted-foreground sm:inline">{session?.user?.name}</span>
             <button
+              type="button"
               onClick={handleToggle}
               className="rounded-md p-2 text-muted-foreground hover:bg-muted"
               aria-label="Toggle theme"
@@ -64,16 +54,20 @@ export default function HomePage() {
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
             <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="rounded-md bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted/80"
+              type="button"
+              onClick={async () => {
+                await signOut({ callbackUrl: "/login" }).catch(() => {})
+              }}
+              className="rounded-md bg-muted px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/80 sm:px-3 sm:text-sm"
             >
-              Đăng xuất
+              <span className="hidden sm:inline">Đăng xuất</span>
+              <span className="sm:hidden">Exit</span>
             </button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl p-6">
+      <main className="mx-auto max-w-7xl p-4 sm:p-6">
         <SignalsDashboard />
       </main>
     </div>

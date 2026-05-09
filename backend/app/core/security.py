@@ -9,7 +9,13 @@ from app.core.config import get_settings
 
 logger = logging.getLogger("dbot-backend")
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(
+    schemes=["argon2", "bcrypt"],
+    deprecated=["bcrypt"],
+    argon2__time_cost=2,
+    argon2__memory_cost=65536,
+    argon2__parallelism=1,
+)
 
 # Pre-computed dummy hash for timing-attack mitigation
 # Computed lazily to avoid slow bcrypt at import time

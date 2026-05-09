@@ -1,12 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useSession } from "next-auth/react"
+import { useSession, signOut } from "next-auth/react"
 import { KeyRound, Users, LayoutDashboard, LogOut, Menu, X, Moon, Sun } from "lucide-react"
-import { signOut } from "next-auth/react"
-import { toggleTheme } from "@/components/theme-provider"
+import { useThemeToggle, useEscapeKey } from "@/lib/hooks"
 
 const navItems = [
   { href: "/admin/token", label: "DBOT Token", icon: KeyRound },
@@ -17,16 +16,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
   const { data: session } = useSession()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [isDark, setIsDark] = useState(false)
+  const { isDark, handleToggle } = useThemeToggle()
 
-  useEffect(() => {
-    setIsDark(document.documentElement.classList.contains("dark"))
-  }, [])
-
-  const handleToggle = () => {
-    toggleTheme()
-    setIsDark((prev) => !prev)
-  }
+  useEscapeKey(() => setIsMobileMenuOpen(false), isMobileMenuOpen)
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -41,16 +33,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 transform border-r border-border bg-card transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 transform flex-col border-r border-border bg-card transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex h-14 items-center justify-between border-b border-border px-4">
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
           <Link href="/" className="flex items-center gap-2 text-lg font-bold text-card-foreground">
             <LayoutDashboard className="h-5 w-5" />
             DBOT Admin
           </Link>
           <button
+            type="button"
             onClick={() => setIsMobileMenuOpen(false)}
             className="rounded-md p-1 text-muted-foreground hover:bg-muted lg:hidden"
             aria-label="Close menu"
@@ -59,7 +52,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </button>
         </div>
 
-        <nav className="space-y-1 p-4">
+        <nav className="flex-1 space-y-1 overflow-y-auto p-4">
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.href
@@ -68,11 +61,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 key={item.href}
                 href={item.href}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+                className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                   isActive
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
+                aria-current={isActive ? "page" : undefined}
               >
                 <Icon className="h-4 w-4" />
                 {item.label}
@@ -81,12 +75,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        <div className="absolute bottom-0 w-full border-t border-border p-4">
+        <div className="shrink-0 border-t border-border p-4">
           <div className="mb-3 text-sm text-muted-foreground">
             {session?.user?.name}
           </div>
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={handleToggle}
               className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
             >
@@ -94,7 +89,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {isDark ? "Light" : "Dark"}
             </button>
             <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              type="button"
+              onClick={async () => {
+                await signOut({ callbackUrl: "/login" }).catch(() => {})
+              }}
               className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
             >
               <LogOut className="h-4 w-4" />
@@ -109,6 +107,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Mobile header */}
         <div className="flex h-14 items-center border-b border-border bg-card px-4 lg:hidden">
           <button
+            type="button"
             onClick={() => setIsMobileMenuOpen(true)}
             className="rounded-md p-2 text-muted-foreground hover:bg-muted"
             aria-label="Open menu"

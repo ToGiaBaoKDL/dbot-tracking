@@ -32,10 +32,8 @@ export async function apiFetch<T>(
     })
 
     if (res.status === 401) {
-      if (typeof window !== "undefined") {
-        await signOut({ callbackUrl: "/login", redirect: true })
-      }
-      throw new Error("Session expired. Please login again.")
+      await signOut({ callbackUrl: "/login" }).catch(() => {})
+      throw new Error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại")
     }
 
     if (!res.ok) {
@@ -49,7 +47,8 @@ export async function apiFetch<T>(
           errMsg = `HTTP ${res.status}`
         }
       } else {
-        errMsg = (await res.text()) || `HTTP ${res.status}`
+        const text = (await res.text()) || `HTTP ${res.status}`
+        errMsg = text.length > 200 ? text.slice(0, 200) + "…" : text
       }
       throw new Error(errMsg)
     }
@@ -60,7 +59,7 @@ export async function apiFetch<T>(
       const parsed = schema.safeParse(json)
       if (!parsed.success) {
         console.error("[CLIENT] API response validation failed:", parsed.error.flatten())
-        throw new Error("Invalid API response format")
+        throw new Error("Định dạng phản hồi API không hợp lệ")
       }
       return parsed.data
     }
@@ -68,7 +67,7 @@ export async function apiFetch<T>(
     return json as T
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
-      throw new Error("Request timeout")
+      throw new Error("Yêu cầu đã hết thời gian chờ")
     }
     throw err
   } finally {

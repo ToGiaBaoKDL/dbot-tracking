@@ -112,7 +112,7 @@ export function SignalsTable({ title, data, futureDays, variant }: SignalsTableP
             {table.getRowModel().rows.map((row) => (
               <tr key={row.id} className="hover:bg-muted/50">
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="whitespace-nowrap px-3 py-2 text-foreground">
+                  <td key={cell.id} className="whitespace-nowrap px-3 py-2 text-foreground tabular-nums">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}

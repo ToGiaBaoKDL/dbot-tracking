@@ -9,6 +9,9 @@ export const signalItemSchema = z.object({
   future_prices: z.array(z.number().nullable()),
 })
 
+export const signalTypeSchema = z.enum(["ALL", "BUY", "SELL"])
+export type SignalType = z.infer<typeof signalTypeSchema>
+
 export const signalsDataSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   future_days: z.number().int().min(1).max(14),
@@ -48,7 +51,29 @@ export const createUserSchema = z.object({
   is_admin: z.boolean().default(false),
 })
 
+export const dbotTokenFormSchema = z.object({
+  token: z.string().min(10, "Token tối thiểu 10 ký tự"),
+  expires_at: z.string().optional(),
+})
+
 export type SignalsData = z.infer<typeof signalsDataSchema>
 export type SignalItem = z.infer<typeof signalItemSchema>
 export type LoginForm = z.infer<typeof loginSchema>
 export type CreateUserForm = z.infer<typeof createUserSchema>
+export type DbotTokenForm = z.infer<typeof dbotTokenFormSchema>
+
+export interface UserItem {
+  id: number
+  username: string
+  is_active: boolean
+  is_admin: boolean
+  created_at: string
+}
+
+export interface DbotTokenDisplay {
+  id?: number
+  token?: string
+  expires_at?: string
+  updated_at?: string
+  message?: string
+}

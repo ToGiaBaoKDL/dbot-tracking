@@ -14,7 +14,7 @@ export const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
         <input
           ref={ref}
           type="range"
-          className="mt-2 block w-40 accent-primary"
+          className="mt-2 block w-full accent-primary"
           {...props}
         />
       </div>

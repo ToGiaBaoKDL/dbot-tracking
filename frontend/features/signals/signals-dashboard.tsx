@@ -1,26 +1,88 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { useSession } from "next-auth/react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { format } from "date-fns"
 import useSWR from "swr"
 import { apiFetch } from "@/lib/api"
 import { SignalsTable } from "./signals-table"
 import { signalsDataSchema } from "@/lib/schemas"
-import type { SignalsData } from "@/lib/schemas"
+import type { SignalsData, SignalType } from "@/lib/schemas"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
+import { Alert } from "@/components/ui/alert"
 
-type SignalType = "ALL" | "BUY" | "SELL"
+const today = format(new Date(), "yyyy-MM-dd")
+
+function getValidSignalType(value: string | null): SignalType {
+  if (value === "BUY" || value === "SELL") return value
+  return "ALL"
+}
+
+function getValidFutureDays(value: string | null): number {
+  const n = Number(value)
+  if (!Number.isNaN(n) && n >= 1 && n <= 14) return n
+  return 7
+}
 
 export function SignalsDashboard() {
   const { data: session } = useSession()
-  const [date, setDate] = useState(() => format(new Date(), "yyyy-MM-dd"))
-  const [futureDays, setFutureDays] = useState(7)
-  const [signalType, setSignalType] = useState<SignalType>("ALL")
-  const [symbol, setSymbol] = useState("")
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  // Derive initial state from URL; local state for UI responsiveness
+  const [date, setDate] = useState(searchParams.get("date") || today)
+  const [futureDays, setFutureDays] = useState(getValidFutureDays(searchParams.get("future_days")))
+  const [signalType, setSignalType] = useState<SignalType>(getValidSignalType(searchParams.get("signal_type")))
+  const [symbol, setSymbol] = useState(searchParams.get("symbol") || "")
+
+  // Sync local state when URL changes (browser back/forward)
+  useEffect(() => {
+    setDate(searchParams.get("date") || today)
+    setFutureDays(getValidFutureDays(searchParams.get("future_days")))
+    setSignalType(getValidSignalType(searchParams.get("signal_type")))
+    setSymbol(searchParams.get("symbol") || "")
+  }, [searchParams])
+
+  const maxDate = today
+
+  const updateQuery = useCallback(
+    (updates: Record<string, string>) => {
+      const params = new URLSearchParams(searchParams.toString())
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value) {
+          params.set(key, value)
+        } else {
+          params.delete(key)
+        }
+      })
+      router.replace(`?${params.toString()}`, { scroll: false })
+    },
+    [searchParams, router]
+  )
+
+  const handleDateChange = (value: string) => {
+    setDate(value)
+    updateQuery({ date: value })
+  }
+
+  const handleSignalTypeChange = (value: SignalType) => {
+    setSignalType(value)
+    updateQuery({ signal_type: value })
+  }
+
+  const handleSymbolChange = (value: string) => {
+    setSymbol(value)
+    updateQuery({ symbol: value.trim().toUpperCase() })
+  }
+
+  const handleFutureDaysChange = (value: number) => {
+    setFutureDays(value)
+    updateQuery({ future_days: String(value) })
+  }
 
   const path = useMemo(() => {
     const params = new URLSearchParams()
@@ -40,17 +102,8 @@ export function SignalsDashboard() {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       errorRetryCount: 2,
-      onError: (err: Error) => {
-        if (!err.message.includes("Session expired")) {
-          console.error("[CLIENT] Signals fetch error:", err.message)
-        }
-      },
     }
   )
-
-  const handleRefetch = useCallback(() => {
-    mutate()
-  }, [mutate])
 
   const showBuy = signalType === "ALL" || signalType === "BUY"
   const showSell = signalType === "ALL" || signalType === "SELL"
@@ -67,8 +120,8 @@ export function SignalsDashboard() {
             id="date-filter"
             type="date"
             value={date}
-            max={format(new Date(), "yyyy-MM-dd")}
-            onChange={(e) => setDate(e.target.value)}
+            max={maxDate}
+            onChange={(e) => handleDateChange(e.target.value)}
             className="mt-1 w-auto"
           />
         </div>
@@ -80,7 +133,8 @@ export function SignalsDashboard() {
           <Select
             id="signal-type"
             value={signalType}
-            onChange={(e) => setSignalType(e.target.value as SignalType)}
+            onChange={(e) => handleSignalTypeChange(e.target.value as SignalType)}
+            className="mt-1"
           >
             <option value="ALL">Tất cả</option>
             <option value="BUY">MUA</option>
@@ -96,7 +150,7 @@ export function SignalsDashboard() {
             id="symbol-filter"
             type="text"
             value={symbol}
-            onChange={(e) => setSymbol(e.target.value)}
+            onChange={(e) => handleSymbolChange(e.target.value)}
             placeholder="VD: VNM"
             maxLength={20}
             className="mt-1 w-32 uppercase placeholder:normal-case"
@@ -112,7 +166,7 @@ export function SignalsDashboard() {
             min={1}
             max={14}
             value={futureDays}
-            onChange={(e) => setFutureDays(Number(e.target.value))}
+            onChange={(e) => handleFutureDaysChange(Number(e.target.value))}
             aria-label="Số ngày hiển thị giá tương lai"
             label={`${futureDays} ngày`}
           />
@@ -120,7 +174,7 @@ export function SignalsDashboard() {
 
         <div>
           <Button
-            onClick={handleRefetch}
+            onClick={() => mutate()}
             disabled={isLoading}
           >
             {isLoading ? "Đang tải..." : "Tải lại dữ liệu"}
@@ -132,9 +186,9 @@ export function SignalsDashboard() {
       </div>
 
       {error && (
-        <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+        <Alert variant="destructive">
           {error instanceof Error ? error.message : "Lỗi không xác định"}
-        </div>
+        </Alert>
       )}
 
       {data && (

@@ -30,3 +30,7 @@ export const CardDescription = ({ className = "", ...props }: React.HTMLAttribut
 export const CardContent = ({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div className={`p-6 pt-0 ${className}`} {...props} />
 )
+
+export const CardFooter = ({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={`flex items-center p-6 pt-0 ${className}`} {...props} />
+)

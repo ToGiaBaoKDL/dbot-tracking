@@ -9,6 +9,7 @@ import { loginSchema, type LoginForm } from "@/lib/schemas"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert } from "@/components/ui/alert"
 
 export default function LoginPage() {
   const [error, setError] = useState("")
@@ -42,7 +43,6 @@ export default function LoginPage() {
       setError("Sai tên đăng nhập hoặc mật khẩu")
     } else {
       router.push(callbackUrl)
-      router.refresh()
     }
   }
 
@@ -56,9 +56,7 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             {error && (
-              <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </div>
+              <Alert variant="destructive">{error}</Alert>
             )}
 
             <div>
