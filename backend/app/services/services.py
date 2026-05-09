@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -143,10 +143,9 @@ class SignalService:
 
 
 def _serialize_token(token, raw_token: str | None = None) -> dict:
-    display = raw_token[:20] + "..." if raw_token else (token.token[:20] + "...")
     return {
         "id": token.id,
-        "token": display,
+        "token": raw_token or token.token,
         "expires_at": token.expires_at.date() if token.expires_at else None,
         "updated_at": token.updated_at,
     }
@@ -169,15 +168,9 @@ class DbotTokenService:
             decrypted = token.token  # May be unencrypted legacy token
         return _serialize_token(token, raw_token=decrypted)
 
-    async def update(self, token: str, expires_at: date | None = None) -> dict:
-        expires_dt = None
-        if expires_at:
-            # End-of-day UTC to avoid timezone surprises
-            expires_dt = datetime.combine(expires_at, datetime.max.time()).replace(
-                tzinfo=timezone.utc
-            )
+    async def update(self, token: str) -> dict:
         encrypted = encrypt_value(token)
-        new_token = await self.token_repo.create_or_update(encrypted, expires_dt)
+        new_token = await self.token_repo.create_or_update(encrypted)
         await self.session.commit()
         return _serialize_token(new_token, raw_token=token)
 

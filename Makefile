@@ -86,4 +86,4 @@ update-password:
 	docker compose exec backend python scripts/update_password.py --username $(USERNAME) --password $(PASSWORD)
 
 update-dbot-token:
-	docker compose exec backend python scripts/update_dbot_token.py "$(TOKEN)" $(if $(EXPIRES_AT),--expires-at $(EXPIRES_AT))
+	docker compose exec backend python scripts/update_dbot_token.py "$(TOKEN)"

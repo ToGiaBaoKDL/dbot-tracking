@@ -45,7 +45,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(false)}
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted lg:hidden"
+            className="cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-muted lg:hidden"
             aria-label="Close menu"
           >
             <X className="h-5 w-5" />
@@ -83,7 +83,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <button
               type="button"
               onClick={handleToggle}
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
+              className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
             >
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               {isDark ? "Light" : "Dark"}
@@ -93,7 +93,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               onClick={async () => {
                 await signOut({ callbackUrl: "/login" }).catch(() => {})
               }}
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
+              className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
             >
               <LogOut className="h-4 w-4" />
               Đăng xuất
@@ -109,7 +109,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(true)}
-            className="rounded-md p-2 text-muted-foreground hover:bg-muted"
+            className="cursor-pointer rounded-md p-2 text-muted-foreground hover:bg-muted"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />

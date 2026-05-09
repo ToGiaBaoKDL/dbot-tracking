@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,15 +14,14 @@ class DbotTokenRepository:
         )
         return result.scalar_one_or_none()
 
-    async def create_or_update(self, token: str, expires_at: datetime | None = None) -> DbotToken:
+    async def create_or_update(self, token: str) -> DbotToken:
         existing = await self.get_current()
         if existing:
             existing.token = token
-            existing.expires_at = expires_at
             await self.session.flush()
             await self.session.refresh(existing)
             return existing
-        new_token = DbotToken(token=token, expires_at=expires_at)
+        new_token = DbotToken(token=token)
         self.session.add(new_token)
         await self.session.flush()
         await self.session.refresh(new_token)

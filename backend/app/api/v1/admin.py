@@ -28,7 +28,7 @@ async def update_dbot_token(
     admin_user: dict = Depends(require_admin),
 ):
     service = DbotTokenService(db)
-    return await service.update(data.token, data.expires_at)
+    return await service.update(data.token)
 
 
 @router.get("/users", response_model=list[UserListItem])

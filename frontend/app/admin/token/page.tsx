@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
@@ -9,12 +9,28 @@ import useSWR from "swr"
 import { apiFetch } from "@/lib/api"
 import { dbotTokenFormSchema, type DbotTokenForm, type DbotTokenDisplay } from "@/lib/schemas"
 import { useFormMessage } from "@/lib/hooks"
-import { KeyRound, Save, Loader2 } from "lucide-react"
-import { Input } from "@/components/ui/input"
+import { KeyRound, Save, Loader2, Eye, EyeOff, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Alert } from "@/components/ui/alert"
 import { PageHeader } from "@/components/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
+
+function decodeJwtExp(token: string): Date | null {
+  try {
+    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")
+    const pad = 4 - (base64.length % 4)
+    const padded = pad === 4 ? base64 : base64 + "=".repeat(pad)
+    const bytes = Uint8Array.from(atob(padded).split("").map((c) => c.charCodeAt(0)))
+    const json = new TextDecoder().decode(bytes)
+    const payload = JSON.parse(json) as { exp?: number }
+    if (payload.exp) {
+      return new Date(payload.exp * 1000)
+    }
+  } catch {
+    // ignore
+  }
+  return null
+}
 
 export default function TokenPage() {
   const { data: session, status } = useSession()
@@ -32,16 +48,28 @@ export default function TokenPage() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(dbotTokenFormSchema),
   })
+
+  const tokenInput = watch("token")
+  const inputExpiry = useMemo(() => {
+    if (!tokenInput) return null
+    return decodeJwtExp(tokenInput)
+  }, [tokenInput])
 
   const { data: currentToken, mutate } = useSWR<DbotTokenDisplay>(
     session?.accessToken ? ["/api/v1/admin/dbot-token", session.accessToken] : null,
     ([path, token]: [string, string]) => apiFetch(path, token),
     { revalidateOnFocus: false }
   )
+
+  const currentExpiry = useMemo(() => {
+    if (!currentToken?.token) return null
+    return decodeJwtExp(currentToken.token)
+  }, [currentToken])
 
   if (status === "loading") {
     return (
@@ -59,14 +87,9 @@ export default function TokenPage() {
     clear()
 
     try {
-      const body: Record<string, string> = { token: data.token }
-      if (data.expires_at) {
-        body.expires_at = data.expires_at
-      }
-
       await apiFetch("/api/v1/admin/dbot-token", session.accessToken, {
         method: "PATCH",
-        body: JSON.stringify(body),
+        body: JSON.stringify({ token: data.token }),
       })
 
       setSuccess("Cập nhật token thành công")
@@ -96,25 +119,48 @@ export default function TokenPage() {
             <Skeleton className="h-4 w-1/3" />
           </div>
         ) : currentToken ? (
-          <div className="space-y-2 text-sm">
+          <div className="space-y-3 text-sm">
             {currentToken.token && (
-              <div className="flex items-center gap-2 rounded-md bg-muted p-3">
-                <div className="flex-1 break-all font-mono text-xs text-muted-foreground">
-                  {showToken ? currentToken.token : currentToken.token.slice(0, 20) + "…"}
+              <>
+                <div className="rounded-md bg-muted p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {showToken ? "Token" : "Token (ẩn)"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowToken((prev) => !prev)}
+                      className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-background cursor-pointer"
+                      aria-pressed={showToken}
+                      aria-label={showToken ? "Ẩn token" : "Hiện token"}
+                    >
+                      {showToken ? (
+                        <>
+                          <EyeOff className="h-3 w-3" /> Ẩn
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="h-3 w-3" /> Hiện
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div className="mt-2 break-all font-mono text-xs text-foreground">
+                    {showToken
+                      ? currentToken.token
+                      : currentToken.token.slice(0, 20) + "…"}
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowToken((prev) => !prev)}
-                  className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-background"
-                  aria-pressed={showToken}
-                  aria-label={showToken ? "Ẩn token" : "Hiện token"}
-                >
-                  {showToken ? "Ẩn" : "Hiện"}
-                </button>
-              </div>
-            )}
-            {currentToken.expires_at && (
-              <p className="text-muted-foreground">Hết hạn: {currentToken.expires_at}</p>
+
+                {currentExpiry && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>
+                      Hết hạn: {currentExpiry.toLocaleString("vi-VN")}
+                    </span>
+                  </div>
+                )}
+              </>
             )}
             {currentToken.updated_at && (
               <p className="text-muted-foreground">
@@ -155,7 +201,7 @@ export default function TokenPage() {
             <textarea
               id="token-input"
               {...register("token")}
-              rows={3}
+              rows={4}
               autoComplete="off"
               spellCheck={false}
               className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
@@ -164,24 +210,15 @@ export default function TokenPage() {
             {errors.token && (
               <p className="mt-1 text-sm text-destructive">{errors.token.message}</p>
             )}
+            {inputExpiry && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                Token hết hạn: {inputExpiry.toLocaleString("vi-VN")}
+              </p>
+            )}
           </div>
 
-          <div>
-            <label htmlFor="expires-input" className="block text-sm font-medium text-card-foreground">
-              Ngày hết hạn (tùy chọn)
-            </label>
-            <Input
-              id="expires-input"
-              type="date"
-              {...register("expires_at")}
-              className="mt-1 w-auto"
-            />
-          </div>
-
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-          >
+          <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (

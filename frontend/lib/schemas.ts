@@ -53,7 +53,6 @@ export const createUserSchema = z.object({
 
 export const dbotTokenFormSchema = z.object({
   token: z.string().min(10, "Token tối thiểu 10 ký tự"),
-  expires_at: z.string().optional(),
 })
 
 export type SignalsData = z.infer<typeof signalsDataSchema>

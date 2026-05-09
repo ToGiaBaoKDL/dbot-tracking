@@ -63,8 +63,8 @@ class SignalsResponse(BaseModel):
 
 
 class DbotTokenUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     token: str = Field(..., min_length=10)
-    expires_at: date | None = None
 
 
 class UserCreate(BaseModel):

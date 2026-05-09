@@ -13,8 +13,7 @@ async def test_update_dbot_token(client: AsyncClient, admin_auth_headers: dict[s
     data = res.json()
     assert data["id"] == 1
     assert data["token"].startswith("test-bearer-token-")
-    assert data["token"].endswith("...")
-    assert data["expires_at"] is None
+    assert data["token"] == "test-bearer-token-12345"
 
 
 @pytest.mark.asyncio
@@ -30,7 +29,7 @@ async def test_get_dbot_token(client: AsyncClient, admin_auth_headers: dict[str,
     assert res.status_code == 200
     data = res.json()
     assert "id" in data
-    assert "token" in data
+    assert data["token"] == "test-bearer-token-12345"
 
 
 @pytest.mark.asyncio
@@ -50,7 +49,7 @@ async def test_update_dbot_token_unauthorized(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_update_dbot_token_with_expires_at(
+async def test_update_dbot_token_rejects_expires_at(
     client: AsyncClient, admin_auth_headers: dict[str, str]
 ):
     res = await client.patch(
@@ -58,9 +57,7 @@ async def test_update_dbot_token_with_expires_at(
         json={"token": "test-bearer-token-12345", "expires_at": "2025-12-31"},
         headers=admin_auth_headers,
     )
-    assert res.status_code == 200
-    data = res.json()
-    assert data["expires_at"] == "2025-12-31"
+    assert res.status_code == 422
 
 
 @pytest.mark.asyncio

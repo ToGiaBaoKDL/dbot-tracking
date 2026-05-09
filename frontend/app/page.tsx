@@ -48,7 +48,7 @@ export default function HomePage() {
             <button
               type="button"
               onClick={handleToggle}
-              className="rounded-md p-2 text-muted-foreground hover:bg-muted"
+              className="cursor-pointer rounded-md p-2 text-muted-foreground hover:bg-muted"
               aria-label="Toggle theme"
             >
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -58,7 +58,7 @@ export default function HomePage() {
               onClick={async () => {
                 await signOut({ callbackUrl: "/login" }).catch(() => {})
               }}
-              className="rounded-md bg-muted px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/80 sm:px-3 sm:text-sm"
+              className="cursor-pointer rounded-md bg-muted px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/80 sm:px-3 sm:text-sm"
             >
               <span className="hidden sm:inline">Đăng xuất</span>
               <span className="sm:hidden">Exit</span>
