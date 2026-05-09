@@ -80,7 +80,7 @@ deploy-swarm:
 	bash scripts/deploy-swarm.sh
 
 create-admin:
-	docker compose exec backend python scripts/create_admin.py --username $(or $(ADMIN_USER),admin) --password $(or $(ADMIN_PASS),admin)
+	docker compose exec backend python scripts/create_admin.py --username $(or $(ADMIN_USER),admin) --password $(or $(ADMIN_PASS),admin123)
 
 update-password:
 	docker compose exec backend python scripts/update_password.py --username $(USERNAME) --password $(PASSWORD)
