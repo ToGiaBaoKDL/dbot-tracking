@@ -21,12 +21,14 @@ logging.basicConfig(
 logger = logging.getLogger("dbot-query")
 
 # Whitelist of queryable tables to prevent accidental data leakage
-_SAFE_TABLES = frozenset({
-    "stocks",
-    "stock_daily_data",
-    "users",
-    "dbot_token",
-})
+_SAFE_TABLES = frozenset(
+    {
+        "stocks",
+        "stock_daily_data",
+        "users",
+        "dbot_token",
+    }
+)
 
 
 def _get_engine() -> Engine:
@@ -55,7 +57,7 @@ def query_table(table: str, limit: int) -> None:
 
     engine = _get_engine()
     # Use SQLAlchemy text() with bound params to prevent injection
-    sql = text("SELECT * FROM \"" + table + "\" LIMIT :limit")
+    sql = text('SELECT * FROM "' + table + '" LIMIT :limit')
     # Note: table name is whitelisted, not user-input directly into query.
     # :limit is a bound parameter (safe from SQL injection).
 
