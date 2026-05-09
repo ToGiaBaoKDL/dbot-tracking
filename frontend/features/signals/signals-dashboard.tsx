@@ -15,8 +15,6 @@ import { Select } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Alert } from "@/components/ui/alert"
 
-const today = format(new Date(), "yyyy-MM-dd")
-
 function getValidSignalType(value: string | null): SignalType {
   if (value === "BUY" || value === "SELL") return value
   return "ALL"
@@ -33,6 +31,8 @@ export function SignalsDashboard() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
+  const today = useMemo(() => format(new Date(), "yyyy-MM-dd"), [])
+
   // Derive initial state from URL; local state for UI responsiveness
   const [date, setDate] = useState(searchParams.get("date") || today)
   const [futureDays, setFutureDays] = useState(getValidFutureDays(searchParams.get("future_days")))
@@ -45,7 +45,7 @@ export function SignalsDashboard() {
     setFutureDays(getValidFutureDays(searchParams.get("future_days")))
     setSignalType(getValidSignalType(searchParams.get("signal_type")))
     setSymbol(searchParams.get("symbol") || "")
-  }, [searchParams])
+  }, [searchParams, today])
 
   const maxDate = today
 
@@ -172,16 +172,13 @@ export function SignalsDashboard() {
           />
         </div>
 
-        <div>
+        <div className="ml-auto">
           <Button
             onClick={() => mutate()}
-            disabled={isLoading}
+            disabled={isValidating}
           >
-            {isLoading ? "Đang tải..." : "Tải lại dữ liệu"}
+            {isValidating ? "Đang tải..." : "Tải lại dữ liệu"}
           </Button>
-          {isValidating && !isLoading && (
-            <span className="ml-2 text-xs text-muted-foreground">(đang cập nhật)</span>
-          )}
         </div>
       </div>
 

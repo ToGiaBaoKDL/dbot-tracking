@@ -1,5 +1,9 @@
+"use client"
+
 import { z } from "zod"
 import { signOut } from "next-auth/react"
+
+let _signingOut = false
 
 export async function apiFetch<T>(
   path: string,
@@ -32,7 +36,10 @@ export async function apiFetch<T>(
     })
 
     if (res.status === 401) {
-      await signOut({ callbackUrl: "/login" }).catch(() => {})
+      if (!_signingOut) {
+        _signingOut = true
+        await signOut({ callbackUrl: "/login" }).catch(() => {})
+      }
       throw new Error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại")
     }
 
@@ -51,6 +58,11 @@ export async function apiFetch<T>(
         errMsg = text.length > 200 ? text.slice(0, 200) + "…" : text
       }
       throw new Error(errMsg)
+    }
+
+    const contentType = res.headers.get("content-type") || ""
+    if (!contentType.includes("application/json")) {
+      throw new Error("Định dạng phản hồi API không hợp lệ")
     }
 
     const json = await res.json()

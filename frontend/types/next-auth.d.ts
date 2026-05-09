@@ -3,7 +3,7 @@ import type { DefaultJWT } from "next-auth/jwt"
 
 declare module "next-auth" {
   interface Session {
-    accessToken: string
+    accessToken?: string
     user: {
       name?: string | null
       is_admin: boolean

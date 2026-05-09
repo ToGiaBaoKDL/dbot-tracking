@@ -16,10 +16,14 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const rawCallback = searchParams.get("callbackUrl") || "/"
-  const callbackUrl =
-    rawCallback.startsWith("/") && !rawCallback.startsWith("//")
-      ? rawCallback
-      : "/"
+  const callbackUrl = (() => {
+    try {
+      const u = new URL(rawCallback, window.location.origin)
+      return u.pathname === rawCallback ? rawCallback : "/"
+    } catch {
+      return "/"
+    }
+  })()
 
   const {
     register,
@@ -32,17 +36,21 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setError("")
 
-    const result = await signIn("credentials", {
-      username: data.username.trim().toLowerCase(),
-      password: data.password,
-      redirect: false,
-      callbackUrl,
-    })
+    try {
+      const result = await signIn("credentials", {
+        username: data.username.trim().toLowerCase(),
+        password: data.password,
+        redirect: false,
+        callbackUrl,
+      })
 
-    if (result?.error) {
-      setError("Sai tên đăng nhập hoặc mật khẩu")
-    } else {
-      router.push(callbackUrl)
+      if (result?.error) {
+        setError("Sai tên đăng nhập hoặc mật khẩu")
+      } else {
+        router.push(callbackUrl)
+      }
+    } catch {
+      setError("Không thể kết nối đến máy chủ")
     }
   }
 

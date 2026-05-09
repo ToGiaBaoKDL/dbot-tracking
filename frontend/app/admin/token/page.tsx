@@ -14,23 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Alert } from "@/components/ui/alert"
 import { PageHeader } from "@/components/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
-
-function decodeJwtExp(token: string): Date | null {
-  try {
-    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")
-    const pad = 4 - (base64.length % 4)
-    const padded = pad === 4 ? base64 : base64 + "=".repeat(pad)
-    const bytes = Uint8Array.from(atob(padded).split("").map((c) => c.charCodeAt(0)))
-    const json = new TextDecoder().decode(bytes)
-    const payload = JSON.parse(json) as { exp?: number }
-    if (payload.exp) {
-      return new Date(payload.exp * 1000)
-    }
-  } catch {
-    // ignore
-  }
-  return null
-}
+import { decodeJwtExp } from "@/lib/jwt"
 
 export default function TokenPage() {
   const { data: session, status } = useSession()
@@ -60,8 +44,10 @@ export default function TokenPage() {
     return decodeJwtExp(tokenInput)
   }, [tokenInput])
 
+  const accessToken = session?.accessToken
+
   const { data: currentToken, mutate } = useSWR<DbotTokenDisplay>(
-    session?.accessToken ? ["/api/v1/admin/dbot-token", session.accessToken] : null,
+    accessToken ? ["/api/v1/admin/dbot-token", accessToken] : null,
     ([path, token]: [string, string]) => apiFetch(path, token),
     { revalidateOnFocus: false }
   )
@@ -79,7 +65,7 @@ export default function TokenPage() {
     )
   }
 
-  if (!session?.accessToken) {
+  if (!accessToken) {
     return null
   }
 
@@ -87,7 +73,7 @@ export default function TokenPage() {
     clear()
 
     try {
-      await apiFetch("/api/v1/admin/dbot-token", session.accessToken, {
+      await apiFetch("/api/v1/admin/dbot-token", accessToken, {
         method: "PATCH",
         body: JSON.stringify({ token: data.token }),
       })
@@ -161,18 +147,6 @@ export default function TokenPage() {
                   </div>
                 )}
               </>
-            )}
-            {currentToken.updated_at && (
-              <p className="text-muted-foreground">
-                Cập nhật: {(() => {
-                  try {
-                    const d = new Date(currentToken.updated_at)
-                    return Number.isNaN(d.getTime()) ? currentToken.updated_at : d.toLocaleString("vi-VN")
-                  } catch {
-                    return currentToken.updated_at
-                  }
-                })()}
-              </p>
             )}
             {currentToken.message && (
               <p className="text-muted-foreground">{currentToken.message}</p>

@@ -31,8 +31,8 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card px-4 py-3 sm:px-6 sm:py-4">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
+      <header className="border-b border-border bg-card">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-3 sm:px-10 sm:py-4">
           <h1 className="text-lg font-bold text-card-foreground sm:text-xl">DBOT Signals Tracker</h1>
           <div className="flex items-center gap-2 sm:gap-4">
             {isAdmin && (
@@ -44,7 +44,6 @@ export default function HomePage() {
                 <span className="hidden sm:inline">Admin</span>
               </Link>
             )}
-            <span className="hidden text-sm text-muted-foreground sm:inline">{session?.user?.name}</span>
             <button
               type="button"
               onClick={handleToggle}

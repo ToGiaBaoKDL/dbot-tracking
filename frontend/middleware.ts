@@ -19,21 +19,22 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET,
   })
 
+  const hasToken = !!token?.accessToken
   const isExpired =
-    token &&
+    hasToken &&
     typeof token.accessTokenExpires === "number" &&
     Date.now() > token.accessTokenExpires
 
-  if (pathname === "/login" && token && !isExpired) {
+  if (pathname === "/login" && hasToken && !isExpired) {
     return NextResponse.redirect(new URL("/", request.url))
   }
 
-  if (pathname !== "/login" && (!token || isExpired)) {
+  if (pathname !== "/login" && (!hasToken || isExpired)) {
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
   // Prevent non-admin users from accessing admin routes
-  if (pathname.startsWith("/admin") && !token?.isAdmin) {
+  if (pathname.startsWith("/admin") && token?.isAdmin !== true) {
     return NextResponse.redirect(new URL("/", request.url))
   }
 

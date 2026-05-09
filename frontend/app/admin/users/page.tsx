@@ -68,8 +68,10 @@ export default function UsersPage() {
     resolver: zodResolver(createUserSchema),
   })
 
+  const accessToken = session?.accessToken
+
   const { data: users, mutate } = useSWR<UserItem[]>(
-    session?.accessToken ? ["/api/v1/admin/users", session.accessToken] : null,
+    accessToken ? ["/api/v1/admin/users", accessToken] : null,
     ([path, token]: [string, string]) => apiFetch(path, token),
     { revalidateOnFocus: false }
   )
@@ -82,7 +84,7 @@ export default function UsersPage() {
     )
   }
 
-  if (!session?.accessToken) {
+  if (!accessToken) {
     return null
   }
 
@@ -90,7 +92,7 @@ export default function UsersPage() {
     clear()
 
     try {
-      await apiFetch("/api/v1/admin/users", session.accessToken, {
+      await apiFetch("/api/v1/admin/users", accessToken, {
         method: "POST",
         body: JSON.stringify(data),
       })
@@ -106,7 +108,7 @@ export default function UsersPage() {
   const toggleActive = async (user: UserItem) => {
     setTogglingIds((prev) => new Set(prev).add(user.id))
     try {
-      await apiFetch(`/api/v1/admin/users/${user.id}`, session.accessToken, {
+      await apiFetch(`/api/v1/admin/users/${user.id}`, accessToken, {
         method: "PATCH",
         body: JSON.stringify({ is_active: !user.is_active }),
       })
@@ -230,14 +232,15 @@ export default function UsersPage() {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overscroll-contain"
           onClick={() => setShowModal(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-title"
+          aria-hidden="true"
         >
           <div
             ref={modalRef}
             className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
           >
             <h2 id="modal-title" className="mb-4 flex items-center gap-2 text-lg font-semibold text-card-foreground">
               <Users className="h-5 w-5 text-primary" />

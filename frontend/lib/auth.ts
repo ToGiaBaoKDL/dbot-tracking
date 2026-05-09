@@ -11,20 +11,7 @@ if (!NEXTAUTH_SECRET) {
   throw new Error("NEXTAUTH_SECRET is not set")
 }
 
-function decodeJwtPayload(token: string): { exp?: number; is_admin?: boolean } | null {
-  try {
-    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")
-    const pad = 4 - (base64.length % 4)
-    const padded = pad === 4 ? base64 : base64 + "=".repeat(pad)
-    const bytes = Uint8Array.from(
-      atob(padded).split("").map((c) => c.charCodeAt(0))
-    )
-    const json = new TextDecoder().decode(bytes)
-    return JSON.parse(json)
-  } catch {
-    return null
-  }
-}
+import { decodeJwtPayload } from "./jwt"
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -52,10 +39,11 @@ export const authOptions: NextAuthOptions = {
             signal: controller.signal,
           })
 
-          if (!res.ok) return null
+          if (res.status === 401) return null
+          if (!res.ok) throw new Error(`Server error: ${res.status}`)
           const data = (await res.json()) as { access_token: string }
 
-          const payload = decodeJwtPayload(data.access_token)
+          const payload = decodeJwtPayload<{ exp?: number; is_admin?: boolean }>(data.access_token)
           const expiresAt = payload?.exp
             ? payload.exp * 1000
             : Date.now() + 4 * 60 * 60 * 1000
@@ -87,15 +75,15 @@ export const authOptions: NextAuthOptions = {
       // the session callback and middleware both see an invalid token.
       const expiresAt = token.accessTokenExpires
       if (typeof expiresAt === "number" && Date.now() > expiresAt) {
-        delete (token as Record<string, unknown>).accessToken
-        delete (token as Record<string, unknown>).accessTokenExpires
-        delete (token as Record<string, unknown>).isAdmin
+        token.accessToken = undefined
+        token.accessTokenExpires = undefined
+        token.isAdmin = undefined
       }
 
       return token
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken ?? ""
+      session.accessToken = token.accessToken
       session.user = {
         ...session.user,
         name: token.name,
