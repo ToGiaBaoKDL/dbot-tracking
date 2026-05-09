@@ -40,7 +40,7 @@ export default function TokenPage() {
 
   const tokenInput = watch("token")
   const inputExpiry = useMemo(() => {
-    if (!tokenInput) return null
+    if (!tokenInput || typeof tokenInput !== "string") return null
     return decodeJwtExp(tokenInput)
   }, [tokenInput])
 
@@ -53,7 +53,7 @@ export default function TokenPage() {
   )
 
   const currentExpiry = useMemo(() => {
-    if (!currentToken?.token) return null
+    if (!currentToken?.token || typeof currentToken.token !== "string") return null
     return decodeJwtExp(currentToken.token)
   }, [currentToken])
 

@@ -79,12 +79,12 @@ export function SignalsTable({ title, data, date, futureDates, variant }: Signal
         enableSorting: false,
         cell: ({ row }) => row.original.price_x ?? "-",
       },
-      ...futureDates.map((dateStr, i) => ({
+      ...(futureDates ?? []).map((dateStr, i) => ({
         accessorKey: `future_${i}`,
         header: format(parseISO(dateStr), "dd/MM"),
         enableSorting: false,
         cell: ({ row }: { row: { original: SignalItem } }) => {
-          const price = row.original.future_prices[i]
+          const price = row.original.future_prices?.[i]
           return price?.toFixed(2) ?? "-"
         },
       })),

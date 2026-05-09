@@ -1,6 +1,9 @@
 export function decodeJwtPayload<T = Record<string, unknown>>(
-  token: string
+  token: string | undefined | null
 ): T | null {
+  if (typeof token !== "string" || !token) {
+    return null
+  }
   try {
     const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")
     const pad = 4 - (base64.length % 4)
@@ -15,7 +18,7 @@ export function decodeJwtPayload<T = Record<string, unknown>>(
   }
 }
 
-export function decodeJwtExp(token: string): Date | null {
+export function decodeJwtExp(token: string | undefined | null): Date | null {
   const payload = decodeJwtPayload<{ exp?: number }>(token)
   if (payload?.exp) {
     return new Date(payload.exp * 1000)
