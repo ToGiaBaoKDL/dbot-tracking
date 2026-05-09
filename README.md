@@ -48,42 +48,24 @@ make up
 # 3. Rebuild backend image if dependencies changed
 make rebuild-backend
 
-# 4. Create first admin user via shell
-make shell-backend
-# Inside the container:
-python -c "
-import asyncio
-from app.core.database import get_db
-from app.repositories.user_repo import UserRepository
-from app.core.security import get_password_hash
-async def go():
-    db = await anext(get_db())
-    u = await UserRepository(db).create('admin', get_password_hash('your-password'), is_admin=True)
-    print(f'Admin user {u.id} created')
-asyncio.run(go())
-"
-exit
+# 4. Run DB migrations (if not auto-applied)
+make init-db
 
-# 5. Login to get JWT
-curl -X POST http://localhost:8000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"your-password"}'
+# 5. Create first admin user
+make create-admin ADMIN_USER=admin ADMIN_PASS=your-password
 
-# 6. Set DBOT token (get from browser DevTools)
-curl -X PATCH http://localhost:8000/api/v1/admin/dbot-token \
-  -H "Authorization: Bearer <JWT_FROM_LOGIN>" \
-  -H "Content-Type: application/json" \
-  -d '{"token":"<DBOT_BEARER_TOKEN>"}'
+# 6. Set DBOT Bearer token (get from browser DevTools)
+make update-dbot-token TOKEN="<DBOT_BEARER_TOKEN>"
 
 # 7. Trigger initial backfill from Airflow UI
 # http://localhost:8080  (admin / admin)
 
 # 8. Start frontend (in a new terminal)
-cd frontend && npm install && npm run dev
+make dev-frontend
 # Open http://localhost:3000
 ```
 
-> **Note:** The first user can also be registered via `POST /api/v1/auth/register`, but only admin users can access admin endpoints. The shell method above creates an admin immediately.
+> **Note:** The first user can also be registered via `POST /api/v1/auth/register`, but only admin users can access admin endpoints. `make create-admin` creates an admin immediately.
 
 ## Services
 
@@ -100,7 +82,7 @@ Airflow is pure orchestrator — zero business logic.
 
 Each DAG task runs a `DockerOperator` that pulls `toilachuoituyet/dbot-backend:latest` and executes ETL scripts inside the container:
 
-- **Daily ETL** — runs `python scripts/etl_daily.py` after market close
+- **Daily ETL** — runs `python scripts/etl_daily.py` at 15:00 Mon–Fri
 - **Initial Dump** — runs `python scripts/etl_initial.py`, triggered manually
 
 Benefits:
@@ -118,37 +100,48 @@ Copy `.env.example` to `.env` and `frontend/.env.example` to `frontend/.env`, th
 | `NEXTAUTH_SECRET` | `frontend/.env` | Yes | `openssl rand -base64 32` |
 | `DATABASE_URL` | root `.env` | Yes | `postgresql+asyncpg://postgres:postgres@localhost:5432/stock_signals` |
 
-## Validate & Query Data
+## Make Commands
 
-Quick commands via `make` (runs inside the backend container):
+All common operations are wrapped in `make` targets:
 
 ```bash
-# Validate today's data
-make validate-daily
+# Infrastructure
+make up                    # Start Postgres + Backend + Airflow
+make down                  # Stop all services
+make logs                  # Follow all container logs
+make rebuild-backend       # Rebuild backend image after dependency changes
+make clean-docker          # Stop + prune containers, volumes, networks
 
-# Validate a specific date
+# Development
+make dev-backend           # Run backend locally (uvicorn reload)
+make dev-frontend          # Run frontend locally (npm run dev)
+make shell-backend         # Shell into backend container
+make shell-airflow         # Shell into airflow container
+
+# Database
+make init-db               # Run Alembic migrations
+make migrate m="desc"      # Create new migration
+
+# Testing & Quality
+make test-backend          # Run pytest
+make format                # Run ruff + prettier formatters
+make lint                  # Run ruff + eslint linters
+
+# Admin Operations
+make create-admin ADMIN_USER=admin ADMIN_PASS=secret123
+make update-password USERNAME=admin PASSWORD=newpass123
+make update-dbot-token TOKEN="eyJhbG..." EXPIRES_AT="2026-05-16"
+
+# Data Validation & Queries
+make validate-daily                    # Validate today's data
 make validate-daily ARGS="--date 2024-01-15"
-
-# Overall DB health check
-make validate-overview
-
-# Query signals for a date
+make validate-overview                 # Overall DB health check
 make query-signals ARGS="--date 2024-01-15 --signal BUY --limit 20"
-
-# Check date coverage (gaps)
 make query-coverage ARGS="--start 2024-01-01 --end 2024-01-31"
-
-# Signal statistics by date
 make query-stats ARGS="--start 2024-01-01 --end 2024-01-31"
-```
 
-Or run directly inside the backend container:
-
-```bash
-make shell-backend
-python scripts/validate_daily.py --date 2024-01-15
-python scripts/queries/latest_signals.py --date 2024-01-15 --limit 10
-exit
+# Deploy
+make deploy-swarm          # Deploy to Docker Swarm
 ```
 
 ## API Endpoints
@@ -187,21 +180,22 @@ Click the **Moon/Sun** icon in the top-right header (main page) or sidebar botto
 
 ## CI/CD
 
-CI runs only when:
-- Push to `main` **and** commit message starts with: `feat:`, `fix:`, `refactor:`, `perf:`, `test:`, `build:`, `ci:`, `docs:`
-- **Or** any Pull Request
-- **And** changed files are in `backend/**` or `.github/workflows/ci-cd.yml`
+Two separate workflows:
 
-Workflow: Test (ruff + pytest) → Build (multi-stage Docker) → Push `toilachuoituyet/dbot-backend:latest` to Docker Hub.
+| Workflow | Triggers | Steps |
+|----------|----------|-------|
+| **Backend CI/CD** (`.github/workflows/backend-ci-cd.yml`) | Push to `main` with conventional commit (`feat:`, `fix:`, etc.) + `backend/**` changes, or any PR | uv setup → ruff → mypy → pytest → Docker build & push |
+| **Frontend CI** (`.github/workflows/frontend-ci.yml`) | Push to `main` + `frontend/**` changes, or any PR | `npm ci` → `tsc --noEmit` → `next lint` → `prettier --check` → `next build` |
+
+Docker Hub: `toilachuoituyet/dbot-backend:latest`
 
 ## Docker Swarm Deploy
 
 ```bash
-# 1. Setup secrets
-echo "your-postgres-password" | docker secret create db_postgres_password -
-echo "your-secret-key" | docker secret create dbot_secret_key -
+# 1. Ensure .env is configured with all required vars
+#    (POSTGRES_PASSWORD, SECRET_KEY, NEXTAUTH_SECRET, etc.)
 
-# 2. Deploy
+# 2. Deploy (script auto-creates secrets and builds airflow image)
 make deploy-swarm
 
 # 3. Monitor
@@ -211,10 +205,11 @@ docker service logs dbot-tracking_backend -f
 
 ## Notes
 
-- DBOT token expires ~7 days. Update via admin API when expired.
+- DBOT token expires ~7 days. Update via `make update-dbot-token` or admin UI.
 - Index symbols (VNINDEX, VNXALL, etc.) are filtered automatically.
 - Daily ETL runs at 15:00 Vietnam time (Mon–Fri).
 - `future_days` accepts 1–14.
 - Backend image is multi-stage build for minimal size.
-- Admin users cannot deactivate their own account.
+- Admin users **cannot deactivate themselves or other admins** (protected at API + service layer).
+- CLI scripts (`create_admin.py`, `update_password.py`, `update_dbot_token.py`) validate input before touching the DB.
 - All frontend colors use semantic CSS variables — dark mode supported out of the box.
