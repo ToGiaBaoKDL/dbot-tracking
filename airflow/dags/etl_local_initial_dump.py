@@ -10,11 +10,10 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.docker.operators.docker import DockerOperator
-from docker.types import Mount
 
-dag_id = os.path.basename(__file__).replace(".py", "")
+_dag_id = os.path.basename(__file__).replace(".py", "")
 
-DEFAULT_ARGS = {
+_DEFAULT_ARGS = {
     "owner": "airflow",
     "depends_on_past": False,
     "email_on_failure": False,
@@ -25,19 +24,17 @@ DEFAULT_ARGS = {
     "max_retry_delay": timedelta(minutes=30),
 }
 
-NETWORK_NAME = "dbot-tracking_default"
-IMAGE = "toilachuoituyet/dbot-backend:latest"
-ENV_MOUNT = Mount(
-    source="/opt/airflow/.env",
-    target="/app/.env",
-    type="bind",
-    read_only=True,
-)
+_NETWORK_NAME = "dbot-tracking_default"
+_IMAGE = "toilachuoituyet/dbot-backend:latest"
+_ETL_ENV = {
+    "DATABASE_URL": os.environ.get("DATABASE_URL", ""),
+    "SECRET_KEY": os.environ.get("SECRET_KEY", ""),
+}
 
 
 with DAG(
-    dag_id=dag_id,
-    default_args=DEFAULT_ARGS,
+    dag_id=_dag_id,
+    default_args=_DEFAULT_ARGS,
     description="Initial historical stock data dump from DBOT",
     schedule=None,
     start_date=datetime(2024, 1, 1),
@@ -45,22 +42,36 @@ with DAG(
     max_active_runs=1,
     tags=["dbot", "etl", "initial"],
 ) as dag:
-    task = DockerOperator(
+    run_etl = DockerOperator(
         task_id="run_initial_dump",
-        image=IMAGE,
+        image=_IMAGE,
         command="python scripts/etl_initial.py",
         docker_url="unix://var/run/docker.sock",
-        network_mode=NETWORK_NAME,
-        mounts=[ENV_MOUNT],
+        network_mode=_NETWORK_NAME,
+        environment=_ETL_ENV,
         auto_remove="success",
+        mount_tmp_dir=False,
         execution_timeout=timedelta(hours=2),
     )
-    # Prevent Jinja from rendering mounts — absolute paths like '/app/.env'
-    # are treated as template file paths and raise TemplateNotFound.
-    task.template_fields = (
+    run_etl.template_fields = (
         "image",
         "command",
         "docker_url",
         "environment",
         "container_name",
     )
+
+    validate = DockerOperator(
+        task_id="validate_overview",
+        image=_IMAGE,
+        command="python scripts/validate_overview.py",
+        docker_url="unix://var/run/docker.sock",
+        network_mode=_NETWORK_NAME,
+        environment=_ETL_ENV,
+        auto_remove="success",
+        mount_tmp_dir=False,
+        execution_timeout=timedelta(minutes=5),
+    )
+    validate.template_fields = run_etl.template_fields
+
+    run_etl >> validate

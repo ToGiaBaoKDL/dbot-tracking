@@ -54,7 +54,11 @@ services:
     container_name: dbot-airflow
     restart: unless-stopped
     init: true
+    group_add:
+      - "999"
     environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
       AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN}
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"

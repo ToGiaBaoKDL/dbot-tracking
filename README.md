@@ -118,6 +118,39 @@ Copy `.env.example` to `.env` and `frontend/.env.example` to `frontend/.env`, th
 | `NEXTAUTH_SECRET` | `frontend/.env` | Yes | `openssl rand -base64 32` |
 | `DATABASE_URL` | root `.env` | Yes | `postgresql+asyncpg://postgres:postgres@localhost:5432/stock_signals` |
 
+## Validate & Query Data
+
+Quick commands via `make` (runs inside the backend container):
+
+```bash
+# Validate today's data
+make validate-daily
+
+# Validate a specific date
+make validate-daily ARGS="--date 2024-01-15"
+
+# Overall DB health check
+make validate-overview
+
+# Query signals for a date
+make query-signals ARGS="--date 2024-01-15 --signal BUY --limit 20"
+
+# Check date coverage (gaps)
+make query-coverage ARGS="--start 2024-01-01 --end 2024-01-31"
+
+# Signal statistics by date
+make query-stats ARGS="--start 2024-01-01 --end 2024-01-31"
+```
+
+Or run directly inside the backend container:
+
+```bash
+make shell-backend
+python scripts/validate_daily.py --date 2024-01-15
+python scripts/queries/latest_signals.py --date 2024-01-15 --limit 10
+exit
+```
+
 ## API Endpoints
 
 | Method | Path | Auth |
