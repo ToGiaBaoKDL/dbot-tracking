@@ -58,6 +58,7 @@ class SignalItem(BaseModel):
 class SignalsResponse(BaseModel):
     date: date
     future_days: int
+    future_dates: list[str] = []
     buy: list[SignalItem]
     sell: list[SignalItem]
 

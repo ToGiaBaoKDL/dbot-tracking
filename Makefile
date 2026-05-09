@@ -1,4 +1,4 @@
-.PHONY: up down logs shell-backend shell-airflow migrate init-db dev-backend dev-frontend test-backend format lint rebuild-backend clean-docker deploy-swarm validate-daily validate-overview query-signals query-coverage query-stats create-admin update-dbot-token
+.PHONY: up down logs shell-backend shell-airflow migrate init-db dev-backend dev-frontend test-backend format lint rebuild-backend clean-docker deploy-swarm validate-daily validate-overview query-signals query-coverage query-stats query-table create-admin update-dbot-token
 
 up:
 	docker compose up -d
@@ -87,3 +87,8 @@ update-password:
 
 update-dbot-token:
 	docker compose exec backend python scripts/update_dbot_token.py "$(TOKEN)"
+
+# Generic table query (safe, whitelisted)
+# Usage: make query-table TABLE=stock_daily_data LIMIT=20
+query-table:
+	docker compose exec backend python scripts/query_table.py "$(TABLE)" -n $(or $(LIMIT),10)

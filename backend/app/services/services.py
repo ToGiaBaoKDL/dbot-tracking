@@ -60,12 +60,24 @@ class StockService:
         return await self.stock_repo.get_all_symbols()
 
 
+def _get_trading_dates(target_date: date, count: int) -> list[date]:
+    """Return the next `count` trading dates (Mon-Fri) after target_date."""
+    trading_dates: list[date] = []
+    offset = 1
+    while len(trading_dates) < count:
+        d = target_date + timedelta(days=offset)
+        if d.weekday() < 5:  # Mon=0 .. Fri=4
+            trading_dates.append(d)
+        offset += 1
+    return trading_dates
+
+
 def _build_future_prices_map(
     signals: list[StockDailyData],
     future_records: list[StockDailyData],
     target_date: date,
     future_days: int,
-) -> dict[str, list[float | None]]:
+) -> tuple[dict[str, list[float | None]], list[str]]:
     symbol_dates: defaultdict[str, dict[date, float | None]] = defaultdict(dict)
     for r in future_records:
         price_val = None
@@ -76,16 +88,18 @@ def _build_future_prices_map(
                 price_val = None
         symbol_dates[r.symbol][r.record_date] = price_val
 
+    trading_dates = _get_trading_dates(target_date, future_days)
+    future_dates = [d.isoformat() for d in trading_dates]
+
     all_symbols = list({s.symbol for s in signals})
     future_prices_map: dict[str, list[float | None]] = {}
     for symbol in all_symbols:
         prices = []
-        for i in range(1, future_days + 1):
-            check_date = target_date + timedelta(days=i)
-            price = symbol_dates.get(symbol, {}).get(check_date)
+        for d in trading_dates:
+            price = symbol_dates.get(symbol, {}).get(d)
             prices.append(price)
         future_prices_map[symbol] = prices
-    return future_prices_map
+    return future_prices_map, future_dates
 
 
 def _build_signal_items(
@@ -124,19 +138,21 @@ class SignalService:
         sell_signals = [s for s in signals if s.signal == "SELL"]
 
         future_prices_map: dict[str, list[float | None]] = {}
+        future_dates: list[str] = []
         if signals and future_days > 0:
             start_future = target_date + timedelta(days=1)
             end_future = target_date + timedelta(days=future_days + FUTURE_DAYS_BUFFER)
             future_records = await self.daily_repo.get_future_prices(
                 list({s.symbol for s in signals}), start_future, end_future
             )
-            future_prices_map = _build_future_prices_map(
+            future_prices_map, future_dates = _build_future_prices_map(
                 signals, future_records, target_date, future_days
             )
 
         return SignalsResponse(
             date=target_date,
             future_days=future_days,
+            future_dates=future_dates,
             buy=_build_signal_items(buy_signals, future_prices_map, future_days),
             sell=_build_signal_items(sell_signals, future_prices_map, future_days),
         )

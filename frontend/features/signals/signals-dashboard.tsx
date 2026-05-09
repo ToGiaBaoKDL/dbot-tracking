@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { format } from "date-fns"
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Alert } from "@/components/ui/alert"
+import { useDebouncedCallback } from "@/lib/hooks"
 
 function getValidSignalType(value: string | null): SignalType {
   if (value === "BUY" || value === "SELL") return value
@@ -33,25 +34,33 @@ export function SignalsDashboard() {
 
   const today = useMemo(() => format(new Date(), "yyyy-MM-dd"), [])
 
-  // Derive initial state from URL; local state for UI responsiveness
-  const [date, setDate] = useState(searchParams.get("date") || today)
-  const [futureDays, setFutureDays] = useState(getValidFutureDays(searchParams.get("future_days")))
-  const [signalType, setSignalType] = useState<SignalType>(getValidSignalType(searchParams.get("signal_type")))
-  const [symbol, setSymbol] = useState(searchParams.get("symbol") || "")
+  // ── Committed values: read directly from URL (single source of truth) ──
+  const committedDate = searchParams.get("date") || today
+  const committedFutureDays = getValidFutureDays(searchParams.get("future_days"))
+  const committedSignalType = getValidSignalType(searchParams.get("signal_type"))
+  const committedSymbol = searchParams.get("symbol") || ""
 
-  // Sync local state when URL changes (browser back/forward)
+  // ── Display state: local buffer for interactive inputs ──
+  const [dateInput, setDateInput] = useState(committedDate)
+  const [signalTypeInput, setSignalTypeInput] = useState<SignalType>(committedSignalType)
+  const [symbolInput, setSymbolInput] = useState(committedSymbol)
+  const [sliderValue, setSliderValue] = useState(committedFutureDays)
+
+  // Sync display state when URL changes (browser back/forward / external navigation)
   useEffect(() => {
-    setDate(searchParams.get("date") || today)
-    setFutureDays(getValidFutureDays(searchParams.get("future_days")))
-    setSignalType(getValidSignalType(searchParams.get("signal_type")))
-    setSymbol(searchParams.get("symbol") || "")
+    setDateInput(searchParams.get("date") || today)
+    setSignalTypeInput(getValidSignalType(searchParams.get("signal_type")))
+    setSymbolInput(searchParams.get("symbol") || "")
+    setSliderValue(getValidFutureDays(searchParams.get("future_days")))
   }, [searchParams, today])
 
-  const maxDate = today
+  // ── updateQuery: NEVER depend on searchParams to avoid feedback loops ──
+  const searchParamsRef = useRef(searchParams)
+  searchParamsRef.current = searchParams
 
   const updateQuery = useCallback(
     (updates: Record<string, string>) => {
-      const params = new URLSearchParams(searchParams.toString())
+      const params = new URLSearchParams(searchParamsRef.current.toString())
       Object.entries(updates).forEach(([key, value]) => {
         if (value) {
           params.set(key, value)
@@ -59,43 +68,59 @@ export function SignalsDashboard() {
           params.delete(key)
         }
       })
-      router.replace(`?${params.toString()}`, { scroll: false })
+      const newQuery = params.toString()
+      const currentQuery = searchParamsRef.current.toString()
+      // Guard: skip replace if URL hasn't actually changed
+      if (newQuery !== currentQuery) {
+        router.replace(`?${newQuery}`, { scroll: false })
+      }
     },
-    [searchParams, router]
+    [router]
   )
 
+  // ── Debounced callback for symbol (no effects, no loops) ──
+  const debouncedUpdateSymbol = useDebouncedCallback((value: string) => {
+    updateQuery({ symbol: value })
+  }, 300)
+
+  // ── Handlers ──
   const handleDateChange = (value: string) => {
-    setDate(value)
+    setDateInput(value)
     updateQuery({ date: value })
   }
 
   const handleSignalTypeChange = (value: SignalType) => {
-    setSignalType(value)
+    setSignalTypeInput(value)
     updateQuery({ signal_type: value })
   }
 
   const handleSymbolChange = (value: string) => {
-    setSymbol(value)
-    updateQuery({ symbol: value.trim().toUpperCase() })
+    const upper = value.toUpperCase()
+    setSymbolInput(upper)
+    debouncedUpdateSymbol(upper.trim())
   }
 
-  const handleFutureDaysChange = (value: number) => {
-    setFutureDays(value)
-    updateQuery({ future_days: String(value) })
+  const handleSliderChange = (value: number) => {
+    setSliderValue(value)
   }
 
+  const handleSliderCommit = () => {
+    updateQuery({ future_days: String(sliderValue) })
+  }
+
+  // ── API path derived from committed URL values only ──
   const path = useMemo(() => {
     const params = new URLSearchParams()
-    params.set("date", date)
-    params.set("future_days", String(futureDays))
-    params.set("signal_type", signalType)
-    if (symbol.trim()) {
-      params.set("symbol", symbol.trim().toUpperCase())
+    params.set("date", committedDate)
+    params.set("future_days", String(committedFutureDays))
+    params.set("signal_type", committedSignalType)
+    if (committedSymbol.trim()) {
+      params.set("symbol", committedSymbol.trim())
     }
     return `/api/v1/signals?${params.toString()}`
-  }, [date, futureDays, signalType, symbol])
+  }, [committedDate, committedFutureDays, committedSignalType, committedSymbol])
 
-  const { data, error, isLoading, isValidating, mutate } = useSWR<SignalsData>(
+  const { data, error, isValidating, mutate } = useSWR<SignalsData>(
     session?.accessToken ? [path, session.accessToken] : null,
     ([p, token]: [string, string]) => apiFetch(p, token, { schema: signalsDataSchema }),
     {
@@ -105,8 +130,8 @@ export function SignalsDashboard() {
     }
   )
 
-  const showBuy = signalType === "ALL" || signalType === "BUY"
-  const showSell = signalType === "ALL" || signalType === "SELL"
+  const showBuy = committedSignalType === "ALL" || committedSignalType === "BUY"
+  const showSell = committedSignalType === "ALL" || committedSignalType === "SELL"
 
   return (
     <div className="space-y-6">
@@ -119,8 +144,8 @@ export function SignalsDashboard() {
           <Input
             id="date-filter"
             type="date"
-            value={date}
-            max={maxDate}
+            value={dateInput}
+            max={today}
             onChange={(e) => handleDateChange(e.target.value)}
             className="mt-1 w-auto"
           />
@@ -132,7 +157,7 @@ export function SignalsDashboard() {
           </label>
           <Select
             id="signal-type"
-            value={signalType}
+            value={signalTypeInput}
             onChange={(e) => handleSignalTypeChange(e.target.value as SignalType)}
             className="mt-1"
           >
@@ -149,7 +174,7 @@ export function SignalsDashboard() {
           <Input
             id="symbol-filter"
             type="text"
-            value={symbol}
+            value={symbolInput}
             onChange={(e) => handleSymbolChange(e.target.value)}
             placeholder="VD: VNM"
             maxLength={20}
@@ -165,18 +190,22 @@ export function SignalsDashboard() {
             id="future-days"
             min={1}
             max={14}
-            value={futureDays}
-            onChange={(e) => handleFutureDaysChange(Number(e.target.value))}
+            value={sliderValue}
+            onChange={(e) => handleSliderChange(Number(e.target.value))}
+            onMouseUp={handleSliderCommit}
+            onTouchEnd={handleSliderCommit}
+            onKeyUp={(e) => {
+              if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") {
+                handleSliderCommit()
+              }
+            }}
             aria-label="Số ngày hiển thị giá tương lai"
-            label={`${futureDays} ngày`}
+            label={`${sliderValue} ngày`}
           />
         </div>
 
         <div className="ml-auto">
-          <Button
-            onClick={() => mutate()}
-            disabled={isValidating}
-          >
+          <Button onClick={() => mutate()} disabled={isValidating}>
             {isValidating ? "Đang tải..." : "Tải lại dữ liệu"}
           </Button>
         </div>
@@ -198,7 +227,8 @@ export function SignalsDashboard() {
             <SignalsTable
               title="MUA"
               data={data.buy}
-              futureDays={data.future_days}
+              date={data.date}
+              futureDates={data.future_dates}
               variant="buy"
             />
           )}
@@ -206,7 +236,8 @@ export function SignalsDashboard() {
             <SignalsTable
               title="BÁN"
               data={data.sell}
-              futureDays={data.future_days}
+              date={data.date}
+              futureDates={data.future_dates}
               variant="sell"
             />
           )}
@@ -215,7 +246,7 @@ export function SignalsDashboard() {
 
       {data && data.buy.length === 0 && data.sell.length === 0 && (
         <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground shadow-sm">
-          Không có tín hiệu nào cho ngày {date}
+          Không có tín hiệu nào cho ngày {committedDate}
         </div>
       )}
     </div>

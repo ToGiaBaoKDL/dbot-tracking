@@ -2,7 +2,8 @@
 DAG: etl_local_daily_dbot
 Job Type: ETL
 Worker Type: local
-Description: Daily ETL to fetch DBOT stock data after market close
+Description: Daily ETL to fetch DBOT stock data after market close.
+Schedule: Mon-Fri at 15:00 (does NOT run on Saturday or Sunday).
 """
 
 import os

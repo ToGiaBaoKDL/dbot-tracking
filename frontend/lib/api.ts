@@ -38,7 +38,13 @@ export async function apiFetch<T>(
     if (res.status === 401) {
       if (!_signingOut) {
         _signingOut = true
-        await signOut({ callbackUrl: "/login" }).catch(() => {})
+        try {
+          await signOut({ callbackUrl: "/login" })
+        } catch {
+          // ignore
+        } finally {
+          _signingOut = false
+        }
       }
       throw new Error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại")
     }
