@@ -218,10 +218,14 @@ class UserAdminService:
             "created_at": user.created_at,
         }
 
-    async def toggle_active(self, user_id: int, is_active: bool) -> dict | None:
+    async def toggle_active(self, user_id: int, is_active: bool, admin_user_id: int) -> dict | None:
         user = await self.user_repo.get_by_id(user_id)
         if not user:
             return None
+        if user.id == admin_user_id:
+            raise ValueError("Cannot deactivate your own account")
+        if user.is_admin:
+            raise ValueError("Cannot deactivate an admin user")
         user.is_active = is_active
         await self.user_repo.update(user)
         await self.session.commit()

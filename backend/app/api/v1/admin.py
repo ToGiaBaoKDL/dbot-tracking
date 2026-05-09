@@ -63,13 +63,14 @@ async def toggle_user_active(
     db: AsyncSession = Depends(get_db),
     admin_user: dict = Depends(require_admin),
 ):
-    if user_id == admin_user["id"]:
+    service = UserAdminService(db)
+    try:
+        result = await service.toggle_active(user_id, data.is_active, admin_user["id"])
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot deactivate your own account",
-        )
-    service = UserAdminService(db)
-    result = await service.toggle_active(user_id, data.is_active)
+            detail=str(exc),
+        ) from exc
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

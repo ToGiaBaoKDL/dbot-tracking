@@ -1,4 +1,4 @@
-.PHONY: up down logs shell-backend shell-airflow migrate init-db dev-backend dev-frontend test-backend format lint rebuild-backend clean-docker deploy-swarm validate-daily validate-overview query-signals query-coverage query-stats
+.PHONY: up down logs shell-backend shell-airflow migrate init-db dev-backend dev-frontend test-backend format lint rebuild-backend clean-docker deploy-swarm validate-daily validate-overview query-signals query-coverage query-stats create-admin update-dbot-token
 
 up:
 	docker compose up -d
@@ -70,3 +70,12 @@ query-stats:
 
 deploy-swarm:
 	bash scripts/deploy-swarm.sh
+
+create-admin:
+	docker compose exec backend python scripts/create_admin.py --username $(or $(ADMIN_USER),admin) --password $(or $(ADMIN_PASS),admin)
+
+update-password:
+	docker compose exec backend python scripts/update_password.py --username $(USERNAME) --password $(PASSWORD)
+
+update-dbot-token:
+	docker compose exec backend python scripts/update_dbot_token.py "$(TOKEN)" $(if $(EXPIRES_AT),--expires-at $(EXPIRES_AT))

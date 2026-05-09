@@ -4,21 +4,13 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { z } from "zod"
 import useSWR from "swr"
 import { apiFetch } from "@/lib/api"
+import { createUserSchema, type CreateUserForm } from "@/lib/schemas"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Users, Plus, Loader2, UserCheck, UserX, Crown } from "lucide-react"
-
-const createUserSchema = z.object({
-  username: z.string().min(3, "Tối thiểu 3 ký tự").max(50),
-  password: z.string().min(6, "Tối thiểu 6 ký tự").max(128),
-  is_admin: z.boolean().default(false),
-})
-
-type CreateUserForm = z.infer<typeof createUserSchema>
 
 interface UserItem {
   id: number
@@ -175,18 +167,22 @@ export default function UsersPage() {
                   {new Date(user.created_at).toLocaleDateString("vi-VN")}
                 </td>
                 <td className="px-4 py-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleActive(user)}
-                    disabled={togglingId === user.id}
-                  >
-                    {togglingId === user.id
-                      ? "Đang cập nhật..."
-                      : user.is_active
-                        ? "Deactivate"
-                        : "Activate"}
-                  </Button>
+                  {user.is_admin ? (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleActive(user)}
+                      disabled={togglingId === user.id}
+                    >
+                      {togglingId === user.id
+                        ? "Đang cập nhật..."
+                        : user.is_active
+                          ? "Deactivate"
+                          : "Activate"}
+                    </Button>
+                  )}
                 </td>
               </tr>
             ))}

@@ -38,6 +38,17 @@ export const loginSchema = z.object({
   password: z.string().min(6, "Mật khẩu tối thiểu 6 ký tự").max(128),
 })
 
+export const createUserSchema = z.object({
+  username: z
+    .string()
+    .min(3, "Tối thiểu 3 ký tự")
+    .max(50)
+    .regex(/^[a-zA-Z0-9_-]+$/, "Chỉ chữ, số, gạch ngang và gạch dưới"),
+  password: z.string().min(6, "Tối thiểu 6 ký tự").max(128),
+  is_admin: z.boolean().default(false),
+})
+
 export type SignalsData = z.infer<typeof signalsDataSchema>
 export type SignalItem = z.infer<typeof signalItemSchema>
 export type LoginForm = z.infer<typeof loginSchema>
+export type CreateUserForm = z.infer<typeof createUserSchema>
