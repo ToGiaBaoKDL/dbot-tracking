@@ -1,5 +1,6 @@
 """DBOT API client for stock data crawling."""
 
+import time
 from datetime import datetime
 
 import httpx
@@ -29,13 +30,24 @@ class DbotClient:
             limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
         )
 
-    def _fetch(self, url: str) -> list:
-        resp = self._client.get(url)
-        resp.raise_for_status()
-        data = resp.json()
-        if not data.get("success"):
-            raise RuntimeError(f"DBOT API error: {data.get('message')}")
-        return data.get("data", [])
+    def _fetch(self, url: str, retries: int = 3) -> list:
+        last_exc: Exception | None = None
+        for attempt in range(retries):
+            try:
+                resp = self._client.get(url)
+                resp.raise_for_status()
+                data = resp.json()
+                if not data.get("success"):
+                    raise RuntimeError(f"DBOT API error: {data.get('message')}")
+                return data.get("data", [])
+            except (httpx.HTTPStatusError, httpx.NetworkError, httpx.TimeoutException) as exc:
+                last_exc = exc
+                if attempt < retries - 1:
+                    time.sleep(2**attempt)
+                continue
+        if last_exc is not None:
+            raise last_exc
+        return []
 
     def get_all_symbols(self) -> list[str]:
         """Fetch all stock symbols from DBOT."""

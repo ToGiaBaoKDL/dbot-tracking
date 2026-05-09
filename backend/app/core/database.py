@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from contextlib import suppress
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -41,7 +42,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with session_maker() as session:
         try:
             yield session
-            await session.commit()
         except Exception:
             await session.rollback()
             raise
@@ -50,7 +50,9 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def dispose_engine() -> None:
-    global _engine
+    global _engine, _async_session_maker
     if _engine is not None:
-        await _engine.dispose()
+        with suppress(RuntimeError):
+            await _engine.dispose()
         _engine = None
+    _async_session_maker = None

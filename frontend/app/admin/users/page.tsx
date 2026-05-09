@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -29,11 +29,20 @@ interface UserItem {
 }
 
 export default function UsersPage() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const [showModal, setShowModal] = useState(false)
   const [message, setMessage] = useState("")
   const [isError, setIsError] = useState(false)
   const [togglingId, setTogglingId] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!showModal) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowModal(false)
+    }
+    document.addEventListener("keydown", handleKey)
+    return () => document.removeEventListener("keydown", handleKey)
+  }, [showModal])
 
   const {
     register,
@@ -50,12 +59,24 @@ export default function UsersPage() {
     { revalidateOnFocus: false }
   )
 
+  if (status === "loading") {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Đang tải...</div>
+      </div>
+    )
+  }
+
+  if (!session?.accessToken) {
+    return null
+  }
+
   const onSubmit = async (data: CreateUserForm) => {
     setMessage("")
     setIsError(false)
 
     try {
-      await apiFetch("/api/v1/admin/users", session!.accessToken, {
+      await apiFetch("/api/v1/admin/users", session.accessToken, {
         method: "POST",
         body: JSON.stringify(data),
       })
@@ -72,7 +93,7 @@ export default function UsersPage() {
   const toggleActive = async (user: UserItem) => {
     setTogglingId(user.id)
     try {
-      await apiFetch(`/api/v1/admin/users/${user.id}`, session!.accessToken, {
+      await apiFetch(`/api/v1/admin/users/${user.id}`, session.accessToken, {
         method: "PATCH",
         body: JSON.stringify({ is_active: !user.is_active }),
       })
@@ -172,16 +193,25 @@ export default function UsersPage() {
           </tbody>
         </table>
 
-        {!users?.length && (
+        {users !== undefined && users.length === 0 && (
           <div className="p-8 text-center text-muted-foreground">Chưa có user nào</div>
         )}
       </div>
 
       {/* Create User Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-xl">
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-card-foreground">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setShowModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+        >
+          <div
+            className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="modal-title" className="mb-4 flex items-center gap-2 text-lg font-semibold text-card-foreground">
               <Users className="h-5 w-5 text-primary" />
               Tạo user mới
             </h2>

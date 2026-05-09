@@ -1,10 +1,13 @@
-from datetime import UTC, datetime, timedelta
+import logging
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import jwt
 from passlib.context import CryptContext
 
 from app.core.config import get_settings
+
+logger = logging.getLogger("dbot-backend")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -43,8 +46,12 @@ def create_access_token(
     """Create JWT and return (token_string, expires_at)."""
     settings = get_settings()
     to_encode = data.copy()
-    now = datetime.now(UTC)
-    expire = now + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
+    now = datetime.now(timezone.utc)
+    expire = now + (
+        expires_delta
+        if expires_delta is not None
+        else timedelta(minutes=settings.access_token_expire_minutes)
+    )
     to_encode.update(
         {
             "exp": expire,
@@ -67,6 +74,11 @@ def decode_access_token(token: str) -> dict | None:
             algorithms=[settings.algorithm],
             issuer=JWT_ISSUER,
             audience=JWT_AUDIENCE,
+            leeway=60,
         )
-    except jwt.PyJWTError:
+    except jwt.ExpiredSignatureError:
+        logger.debug("JWT decode failed: token expired")
+        return None
+    except jwt.InvalidTokenError as exc:
+        logger.debug("JWT decode failed: %s", exc)
         return None

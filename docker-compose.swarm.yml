@@ -6,6 +6,13 @@ services:
       restart_policy:
         condition: any
         delay: 5s
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD_FILE: /run/secrets/db_postgres_password
@@ -30,6 +37,13 @@ services:
       restart_policy:
         condition: any
         delay: 5s
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
     environment:
       DATABASE_URL: ${DATABASE_URL}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://your-domain.com}
@@ -39,20 +53,33 @@ services:
       - "8000:8000"
     networks:
       - dbot-network
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     command: >
-      sh -c "export SECRET_KEY=$$(cat /run/secrets/dbot_secret_key) && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level info"
+      sh -c "export SECRET_KEY=$$(cat /run/secrets/dbot_secret_key) && alembic upgrade head && gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8000"
 
   airflow:
-    image: apache/airflow:2.11.2-python3.12
+    image: dbot-airflow:latest
     deploy:
       replicas: 1
       restart_policy:
         condition: any
         delay: 10s
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
     environment:
       AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN}
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: ${AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION:-false}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
@@ -61,14 +88,18 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./airflow/dags:/opt/airflow/dags:ro
       - ./airflow/plugins:/opt/airflow/plugins:ro
-      - ./.env:/opt/airflow/.env:ro
     ports:
       - "8080:8080"
     networks:
       - dbot-network
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     command: >
       bash -c "
-        pip install --no-cache-dir apache-airflow-providers-docker
         airflow db migrate
         airflow users list | grep -q '${AIRFLOW_ADMIN_USER:-admin}' || airflow users create --username '${AIRFLOW_ADMIN_USER:-admin}' --password '${AIRFLOW_ADMIN_PASSWORD:-admin}' --firstname Admin --lastname User --role Admin --email admin@example.com
         airflow webserver &

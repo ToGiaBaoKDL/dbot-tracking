@@ -13,13 +13,13 @@ class StockRepository:
         result = await self.session.execute(
             select(Stock).where(Stock.is_active.is_(True), Stock.is_index.is_(False))
         )
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def get_all_symbols(self) -> list[str]:
         result = await self.session.execute(
             select(Stock.symbol).where(Stock.is_active.is_(True), Stock.is_index.is_(False))
         )
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def upsert_stocks(self, symbols: list[str], is_index: bool = False) -> None:
         if not symbols:
@@ -30,6 +30,8 @@ class StockRepository:
     async def mark_inactive(self, symbols: list[str]) -> None:
         if not symbols:
             return
+        from sqlalchemy import update
+
         await self.session.execute(
-            Stock.__table__.update().where(Stock.symbol.in_(symbols)).values(is_active=False)
+            update(Stock).where(Stock.symbol.in_(symbols)).values(is_active=False)
         )

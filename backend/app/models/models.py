@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     BigInteger,
@@ -41,9 +42,7 @@ class Stock(Base, TimestampMixin):
     is_index: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    daily_data: Mapped[list["StockDailyData"]] = relationship(
-        back_populates="stock", cascade="all, delete-orphan"
-    )
+    daily_data: Mapped[list["StockDailyData"]] = relationship(back_populates="stock")
 
 
 class StockDailyData(Base, TimestampMixin):
@@ -52,9 +51,9 @@ class StockDailyData(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
     symbol: Mapped[str] = mapped_column(String(20), ForeignKey("stocks.symbol"), nullable=False)
     record_date: Mapped[date] = mapped_column(Date, nullable=False)
-    close_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    close_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     volume: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    prev_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    prev_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     signal: Mapped[str | None] = mapped_column(String(4), nullable=True)
     source_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 

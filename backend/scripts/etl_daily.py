@@ -4,7 +4,7 @@
 import logging
 
 from app.etl.client import DbotClient, transform_dbot_record
-from app.etl.database import get_dbot_token, save_daily_records
+from app.etl.database import get_dbot_token, save_daily_records, save_symbols
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,6 +22,10 @@ def run_daily_etl() -> dict:
         daily_data = client.get_daily_all()
 
     records = [r for r in (transform_dbot_record(raw) for raw in daily_data) if r is not None]
+    symbols = list({r["symbol"] for r in records})
+    if symbols:
+        save_symbols(symbols)
+        logger.info("Upserted %s symbols", len(symbols))
     save_daily_records(records)
 
     buy_count = sum(1 for r in records if r.get("signal") == "BUY")

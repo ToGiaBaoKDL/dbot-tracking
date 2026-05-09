@@ -1,16 +1,17 @@
-name: CI/CD
+name: Backend CI/CD
 
 on:
   push:
     branches: [main]
     paths:
       - "backend/**"
-      - ".github/workflows/ci-cd.yml"
+      - ".github/workflows/backend-ci-cd.yml"
   pull_request:
     branches: [main]
     paths:
       - "backend/**"
-      - ".github/workflows/ci-cd.yml"
+      - ".github/workflows/backend-ci-cd.yml"
+  workflow_dispatch:
 
 env:
   REGISTRY: docker.io
@@ -23,7 +24,6 @@ jobs:
     defaults:
       run:
         working-directory: ./backend
-    # Only run on conventional commit prefixes (skip chore, style, etc.)
     if: |
       startsWith(github.event.head_commit.message, 'feat:') ||
       startsWith(github.event.head_commit.message, 'fix:') ||
@@ -37,25 +37,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.12"
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
 
       - name: Install dependencies
-        run: |
-          pip install -e ".[dev]"
+        run: uv pip install --system -e ".[dev]"
 
       - name: Run ruff
         run: |
-          ruff check .
-          ruff format . --check
+          uv run ruff check .
+          uv run ruff format . --check
+
+      - name: Run type check
+        run: uv run mypy app/ --ignore-missing-imports
 
       - name: Run tests
         env:
-          SECRET_KEY: test-secret-key-for-ci-only
+          SECRET_KEY: test-secret-key-for-ci-only-must-be-at-least-32-bytes-long
         run: |
-          PYTHONPATH=. pytest tests/ -v
+          uv run pytest tests/ -v
 
   build-and-push:
     name: Build & Push Docker Image

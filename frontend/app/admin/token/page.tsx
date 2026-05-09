@@ -8,6 +8,8 @@ import { z } from "zod"
 import useSWR from "swr"
 import { apiFetch } from "@/lib/api"
 import { KeyRound, Save, Loader2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 
 const tokenSchema = z.object({
   token: z.string().min(10, "Token tối thiểu 10 ký tự"),
@@ -25,9 +27,10 @@ interface DbotTokenDisplay {
 }
 
 export default function TokenPage() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const [message, setMessage] = useState("")
   const [isError, setIsError] = useState(false)
+  const [showToken, setShowToken] = useState(false)
 
   const {
     register,
@@ -44,6 +47,18 @@ export default function TokenPage() {
     { revalidateOnFocus: false }
   )
 
+  if (status === "loading") {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Đang tải...</div>
+      </div>
+    )
+  }
+
+  if (!session?.accessToken) {
+    return null
+  }
+
   const onSubmit = async (data: TokenForm) => {
     setMessage("")
     setIsError(false)
@@ -54,7 +69,7 @@ export default function TokenPage() {
         body.expires_at = data.expires_at
       }
 
-      await apiFetch("/api/v1/admin/dbot-token", session!.accessToken, {
+      await apiFetch("/api/v1/admin/dbot-token", session.accessToken, {
         method: "PATCH",
         body: JSON.stringify(body),
       })
@@ -84,8 +99,17 @@ export default function TokenPage() {
         {currentToken ? (
           <div className="space-y-2 text-sm">
             {currentToken.token && (
-              <div className="rounded bg-muted p-3 font-mono text-xs break-all text-muted-foreground">
-                {currentToken.token}
+              <div className="flex items-center gap-2 rounded bg-muted p-3">
+                <div className="font-mono text-xs break-all text-muted-foreground flex-1">
+                  {showToken ? currentToken.token : currentToken.token.slice(0, 20) + "..."}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowToken((prev) => !prev)}
+                  className="rounded px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-background"
+                >
+                  {showToken ? "Ẩn" : "Hiện"}
+                </button>
               </div>
             )}
             {currentToken.expires_at && (
@@ -142,17 +166,16 @@ export default function TokenPage() {
             <label className="block text-sm font-medium text-card-foreground">
               Ngày hết hạn (tùy chọn)
             </label>
-            <input
+            <Input
               type="date"
               {...register("expires_at")}
-              className="mt-1 block rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              className="mt-1 w-auto"
             />
           </div>
 
-          <button
+          <Button
             type="submit"
             disabled={isSubmitting}
-            className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -160,7 +183,7 @@ export default function TokenPage() {
               <Save className="h-4 w-4" />
             )}
             {isSubmitting ? "Đang lưu..." : "Cập nhật"}
-          </button>
+          </Button>
         </form>
       </div>
     </div>

@@ -8,6 +8,10 @@ import { apiFetch } from "@/lib/api"
 import { SignalsTable } from "./signals-table"
 import { signalsDataSchema } from "@/lib/schemas"
 import type { SignalsData } from "@/lib/schemas"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Select } from "@/components/ui/select"
+import { Slider } from "@/components/ui/slider"
 
 type SignalType = "ALL" | "BUY" | "SELL"
 
@@ -31,7 +35,7 @@ export function SignalsDashboard() {
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<SignalsData>(
     session?.accessToken ? [path, session.accessToken] : null,
-    ([p, token]: [string, string]) => apiFetch(p, token, {}, signalsDataSchema),
+    ([p, token]: [string, string]) => apiFetch(p, token, { schema: signalsDataSchema }),
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -59,13 +63,13 @@ export function SignalsDashboard() {
           <label htmlFor="date-filter" className="block text-sm font-medium text-card-foreground">
             Ngày
           </label>
-          <input
+          <Input
             id="date-filter"
             type="date"
             value={date}
             max={format(new Date(), "yyyy-MM-dd")}
             onChange={(e) => setDate(e.target.value)}
-            className="mt-1 block rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+            className="mt-1 w-auto"
           />
         </div>
 
@@ -73,30 +77,29 @@ export function SignalsDashboard() {
           <label htmlFor="signal-type" className="block text-sm font-medium text-card-foreground">
             Tín hiệu
           </label>
-          <select
+          <Select
             id="signal-type"
             value={signalType}
             onChange={(e) => setSignalType(e.target.value as SignalType)}
-            className="mt-1 block rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="ALL">Tất cả</option>
             <option value="BUY">MUA</option>
             <option value="SELL">BÁN</option>
-          </select>
+          </Select>
         </div>
 
         <div>
           <label htmlFor="symbol-filter" className="block text-sm font-medium text-card-foreground">
             Mã CK
           </label>
-          <input
+          <Input
             id="symbol-filter"
             type="text"
             value={symbol}
             onChange={(e) => setSymbol(e.target.value)}
             placeholder="VD: VNM"
             maxLength={20}
-            className="mt-1 block w-32 rounded-md border border-input bg-background px-3 py-2 text-sm uppercase text-foreground placeholder:normal-case placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+            className="mt-1 w-32 uppercase placeholder:normal-case"
           />
         </div>
 
@@ -104,27 +107,24 @@ export function SignalsDashboard() {
           <label htmlFor="future-days" className="block text-sm font-medium text-card-foreground">
             Số ngày hiển thị (1-14)
           </label>
-          <input
+          <Slider
             id="future-days"
-            type="range"
             min={1}
             max={14}
             value={futureDays}
             onChange={(e) => setFutureDays(Number(e.target.value))}
             aria-label="Số ngày hiển thị giá tương lai"
-            className="mt-2 block w-40"
+            label={`${futureDays} ngày`}
           />
-          <span className="text-sm text-muted-foreground">{futureDays} ngày</span>
         </div>
 
         <div>
-          <button
+          <Button
             onClick={handleRefetch}
             disabled={isLoading}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {isLoading ? "Đang tải..." : "Tải lại dữ liệu"}
-          </button>
+          </Button>
           {isValidating && !isLoading && (
             <span className="ml-2 text-xs text-muted-foreground">(đang cập nhật)</span>
           )}

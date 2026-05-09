@@ -31,7 +31,7 @@ class StockDailyDataRepository:
         if symbol:
             stmt = stmt.where(StockDailyData.symbol == symbol.upper())
         result = await self.session.execute(stmt)
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def get_future_prices(
         self, symbols: list[str], start_date: date, end_date: date
@@ -45,7 +45,7 @@ class StockDailyDataRepository:
             )
             .order_by(StockDailyData.symbol, StockDailyData.record_date)
         )
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def get_latest_date(self) -> date | None:
         result = await self.session.execute(
@@ -59,4 +59,4 @@ class StockDailyDataRepository:
             .distinct()
             .order_by(StockDailyData.record_date.desc())
         )
-        return result.scalars().all()
+        return list(result.scalars().all())

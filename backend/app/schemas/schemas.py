@@ -50,7 +50,7 @@ class SignalItem(BaseModel):
     symbol: str
     date: date
     volume: int | None
-    signal: str
+    signal: str | None
     price_x: float | None
     future_prices: list[float | None]
 

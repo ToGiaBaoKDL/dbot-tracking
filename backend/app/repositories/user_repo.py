@@ -31,7 +31,7 @@ class UserRepository:
 
     async def get_all(self) -> list[User]:
         result = await self.session.execute(select(User).order_by(User.id))
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def update(self, user: User) -> User:
         self.session.add(user)

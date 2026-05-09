@@ -55,7 +55,7 @@ services:
     restart: unless-stopped
     init: true
     group_add:
-      - "999"
+      - "${DOCKER_GID:-999}"
     environment:
       DATABASE_URL: ${DATABASE_URL}
       SECRET_KEY: ${SECRET_KEY}

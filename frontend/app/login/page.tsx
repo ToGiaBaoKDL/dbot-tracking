@@ -14,7 +14,11 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") || "/"
+  const rawCallback = searchParams.get("callbackUrl") || "/"
+  const callbackUrl =
+    rawCallback.startsWith("/") && !rawCallback.startsWith("//")
+      ? rawCallback
+      : "/"
 
   const {
     register,

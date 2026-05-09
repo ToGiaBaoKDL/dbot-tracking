@@ -1,6 +1,7 @@
 from collections import defaultdict
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.encryption import decrypt_value, encrypt_value
@@ -40,12 +41,14 @@ class AuthService:
         return _token_for_user(user)
 
     async def register(self, username: str, password: str) -> dict | None:
-        existing = await self.user_repo.get_by_username(username)
         # Always hash password first to keep timing constant regardless of existence
         hashed = get_password_hash(password)
-        if existing:
+        try:
+            user = await self.user_repo.create(username, hashed)
+            await self.session.commit()
+        except IntegrityError:
+            await self.session.rollback()
             return None
-        user = await self.user_repo.create(username, hashed)
         return _token_for_user(user)
 
 
@@ -169,9 +172,13 @@ class DbotTokenService:
     async def update(self, token: str, expires_at: date | None = None) -> dict:
         expires_dt = None
         if expires_at:
-            expires_dt = datetime.combine(expires_at, datetime.min.time()).replace(tzinfo=UTC)
+            # End-of-day UTC to avoid timezone surprises
+            expires_dt = datetime.combine(expires_at, datetime.max.time()).replace(
+                tzinfo=timezone.utc
+            )
         encrypted = encrypt_value(token)
         new_token = await self.token_repo.create_or_update(encrypted, expires_dt)
+        await self.session.commit()
         return _serialize_token(new_token, raw_token=token)
 
 
@@ -196,11 +203,13 @@ class UserAdminService:
     async def create_user(
         self, username: str, password: str, is_admin: bool = False
     ) -> dict | None:
-        existing = await self.user_repo.get_by_username(username)
-        if existing:
-            return None
         hashed = get_password_hash(password)
-        user = await self.user_repo.create(username, hashed, is_admin=is_admin)
+        try:
+            user = await self.user_repo.create(username, hashed, is_admin=is_admin)
+            await self.session.commit()
+        except IntegrityError:
+            await self.session.rollback()
+            return None
         return {
             "id": user.id,
             "username": user.username,
@@ -215,6 +224,7 @@ class UserAdminService:
             return None
         user.is_active = is_active
         await self.user_repo.update(user)
+        await self.session.commit()
         return {
             "id": user.id,
             "username": user.username,

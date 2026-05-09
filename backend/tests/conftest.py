@@ -1,12 +1,15 @@
 import os
 
 # Must set required env vars before importing app modules
-os.environ.setdefault("SECRET_KEY", "test-secret-key-for-pytest-only")
+os.environ.setdefault(
+    "SECRET_KEY", "test-secret-key-for-pytest-only-must-be-at-least-32-bytes-long"
+)
 os.environ.setdefault("BACKEND_HOST", "0.0.0.0")
 os.environ.setdefault("BACKEND_PORT", "8000")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 
 from collections.abc import AsyncGenerator
+from contextlib import suppress
 
 import pytest
 import pytest_asyncio
@@ -110,3 +113,13 @@ async def admin_auth_headers(client: AsyncClient, db_session: AsyncSession) -> d
         json={"username": "adminuser", "password": "adminpass123"},
     )
     return {"Authorization": f"Bearer {res.json()['access_token']}"}
+
+
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def _cleanup_engines():
+    """Dispose any globally cached engines after all tests finish."""
+    yield
+    from app.core.database import dispose_engine
+
+    with suppress(RuntimeError):
+        await dispose_engine()

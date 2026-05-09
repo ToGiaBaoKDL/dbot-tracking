@@ -1,14 +1,43 @@
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .env
 .env.local
+.env.*.local
+!.env.example
 test.db
 *.db
 .pytest_cache/
 .ruff_cache/
 .venv/
 venv/
-Dockerfile
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Secrets
+*.pem
+*.key
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*.yml
 .dockerignore
+
+# CI
+.github/

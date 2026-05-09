@@ -29,7 +29,13 @@ export default function HomePage() {
   }
 
   if (status === "unauthenticated" || !session?.accessToken) {
-    return null
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <p className="text-muted-foreground">Đang chuyển hướng...</p>
+        </div>
+      </div>
+    )
   }
 
   const isAdmin = session.user?.is_admin === true

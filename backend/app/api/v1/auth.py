@@ -11,6 +11,13 @@ router = APIRouter()
 
 @router.post("/register", response_model=Token)
 async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
+    from app.core.config import get_settings
+
+    if get_settings().registration_disabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Registration is disabled",
+        )
     service = AuthService(db)
     result = await service.register(data.username, data.password)
     if not result:
