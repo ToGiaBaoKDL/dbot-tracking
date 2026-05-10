@@ -173,7 +173,7 @@ Backups are streamed directly to **Oracle Object Storage** — no local copy is 
 | `ORACLE_SSH_KEY` | Private key content (entire file) |
 | `ORACLE_API_DOMAIN` | Domain serving the backend API |
 
-Deploy triggers on push to `main` containing `deploy:` in the commit message (or manual `workflow_dispatch`).
+Deploy triggers on push to `main` containing `deploy:`, `deploy(be)`, or `deploy(fe)` in the commit message (or manual `workflow_dispatch`).
 
 ### Frontend Secrets (Vercel)
 

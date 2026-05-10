@@ -90,8 +90,8 @@ See [docs/development](docs/development/) for full development guide.
 
 | Workflow | Triggers | Steps |
 |----------|----------|-------|
-| **Backend CI/CD** | Push to `main` + `backend/**` changes | uv → ruff → mypy → pytest → Docker build & push → Deploy to Oracle Cloud |
-| **Frontend CI/CD** | Push to `main` + `frontend/**` changes | `npm ci` → `tsc` → `eslint` → `prettier` → `next build` → Deploy to Vercel |
+| **Backend CI/CD** | Push to `main` + `backend/**` + `deploy:` / `deploy(be)` | uv → ruff → mypy → pytest → Docker build & push → Deploy to Oracle Cloud |
+| **Frontend CI/CD** | Push to `main` + `frontend/**` + `deploy:` / `deploy(fe)` | `npm ci` → `tsc` → `eslint` → `prettier` → `next build` → Deploy to Vercel |
 
 ## Notes
 

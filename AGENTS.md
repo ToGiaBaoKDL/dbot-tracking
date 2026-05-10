@@ -223,5 +223,5 @@ make init-db
 - **Airflow image is built locally** (`docker build -t dbot-airflow:latest ./airflow`) and has `pull_policy: never` in `docker-compose.prod.yml`.
 - **Deploy script** (`scripts/deploy-oracle.sh`) pulls only the backend image, force-recreates airflow after local build, and prunes images older than 7 days to preserve rollback candidates.
 - **Rollback script** (`scripts/rollback.sh`) uses inline `DBOT_BACKEND_IMAGE=` env var — does **not** mutate `.env`. Rollback available via `make rollback-oracle [TAG=...]`.
-- **CI/CD deploy gate**: Build/push + Oracle deploy only trigger on push commits containing `deploy:` or on manual `workflow_dispatch`.
+- **CI/CD deploy gate**: Backend deploy triggers on `deploy:` or `deploy(be)`; frontend deploy triggers on `deploy:` or `deploy(fe)`. Manual `workflow_dispatch` always works for both.
 - **Backup script** (`scripts/backup.sh`) runs via cron, dumps to `/tmp/`, uploads directly to Oracle Object Storage via rclone (S3-compatible API), then deletes the temp file. No local copy is retained.

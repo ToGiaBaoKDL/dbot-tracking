@@ -67,7 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: test-frontend
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'deploy:') || contains(github.event.head_commit.message, 'deploy(fe)'))
     permissions:
       contents: read
     defaults:
