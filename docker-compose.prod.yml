@@ -1,0 +1,161 @@
+# Production Docker Compose for Oracle Cloud Free Tier (single node)
+# Optimized for Arm Compute Instance (Ampere A1) with 2 OCPU + 12 GB RAM.
+#
+# Prerequisites:
+#   1. VM Ubuntu 22.04 with Docker + Docker Compose installed
+#   2. .env file present in same directory (not committed to git)
+#   3. Airflow image built locally: docker build -t dbot-airflow:latest ./airflow
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dbot-postgres
+    restart: unless-stopped
+    # 1 GB for PostgreSQL cache + connections
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-stock_signals}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "effective_cache_size=768MB"
+      - "-c"
+      - "maintenance_work_mem=64MB"
+      - "-c"
+      - "work_mem=16MB"
+      - "-c"
+      - "max_connections=150"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - dbot-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    image: ${DBOT_BACKEND_IMAGE:-toilachuoituyet/dbot-backend:latest}
+    container_name: dbot-backend
+    restart: unless-stopped
+    init: true
+    pull_policy: always
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      REGISTRATION_DISABLED: ${REGISTRATION_DISABLED:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dbot-network
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    command: >
+      sh -c "alembic upgrade head && gunicorn -w 5 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8000 --access-logfile -"
+
+  airflow:
+    image: dbot-airflow:latest
+    container_name: dbot-airflow
+    restart: unless-stopped
+    init: true
+    pull_policy: never
+    group_add:
+      - "${DOCKER_GID:-999}"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      DBOT_BACKEND_IMAGE: ${DBOT_BACKEND_IMAGE:-toilachuoituyet/dbot-backend:latest}
+      DBOT_DOCKER_NETWORK: dbot-network
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN}
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: ${AIRFLOW__CORE__DEFAULT_TIMEZONE:-Asia/Ho_Chi_Minh}
+      AIRFLOW__CORE__SQL_ALCHEMY_POOL_SIZE: "5"
+      AIRFLOW__CORE__SQL_ALCHEMY_MAX_OVERFLOW: "10"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - ./airflow/plugins:/opt/airflow/plugins:ro
+      - airflow_data:/opt/airflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dbot-network
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    command: >
+      bash -c "
+        airflow db migrate
+        airflow users list | grep -q '${AIRFLOW_ADMIN_USER:-admin}' || airflow users create --username '${AIRFLOW_ADMIN_USER:-admin}' --password '${AIRFLOW_ADMIN_PASSWORD:-admin}' --firstname Admin --lastname User --role Admin --email admin@example.com
+        rm -f /opt/airflow/airflow-webserver.pid
+        airflow webserver &
+        airflow scheduler &
+        wait
+      "
+
+  # Cloudflare Tunnel — exposes services without opening ports
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: dbot-tunnel
+    restart: unless-stopped
+    command: tunnel run --token ${CF_TUNNEL_TOKEN}
+    networks:
+      - dbot-network
+    depends_on:
+      backend:
+        condition: service_healthy
+      airflow:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+volumes:
+  postgres_data:
+    driver: local
+  airflow_data:
+    driver: local
+
+networks:
+  dbot-network:
+    driver: bridge

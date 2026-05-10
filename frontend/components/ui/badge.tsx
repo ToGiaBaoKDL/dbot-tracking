@@ -1,7 +1,7 @@
-import * as React from "react"
+import * as React from "react";
 
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: "default" | "secondary" | "destructive" | "success" | "outline"
+  variant?: "default" | "secondary" | "destructive" | "success" | "outline";
 }
 
 export function Badge({ className = "", variant = "default", ...props }: BadgeProps) {
@@ -11,12 +11,12 @@ export function Badge({ className = "", variant = "default", ...props }: BadgePr
     destructive: "bg-destructive/10 text-destructive hover:bg-destructive/20",
     success: "bg-success/15 text-success hover:bg-success/25",
     outline: "border border-border text-foreground hover:bg-muted",
-  }
+  };
 
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${variants[variant]} ${className}`}
       {...props}
     />
-  )
+  );
 }

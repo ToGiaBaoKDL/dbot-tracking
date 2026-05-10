@@ -30,6 +30,7 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       SECRET_KEY: ${SECRET_KEY}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      REGISTRATION_DISABLED: ${REGISTRATION_DISABLED:-false}
     ports:
       - "8000:8000"
     volumes:

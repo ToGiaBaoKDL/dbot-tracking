@@ -1,4 +1,4 @@
-import * as React from "react"
+import * as React from "react";
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {}
 
@@ -12,7 +12,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       >
         {children}
       </select>
-    )
-  }
-)
-Select.displayName = "Select"
+    );
+  },
+);
+Select.displayName = "Select";

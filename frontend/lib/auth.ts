@@ -1,17 +1,19 @@
-import type { NextAuthOptions } from "next-auth"
-import CredentialsProvider from "next-auth/providers/credentials"
+import type { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { decodeJwtPayload } from "./jwt";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-if (!API_URL) {
-  throw new Error("NEXT_PUBLIC_API_URL is not set")
-}
-
-const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET
+const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
 if (!NEXTAUTH_SECRET) {
-  throw new Error("NEXTAUTH_SECRET is not set")
+  throw new Error("NEXTAUTH_SECRET is not set");
 }
 
-import { decodeJwtPayload } from "./jwt"
+function getApiUrl(): string {
+  const url = process.env.NEXT_PUBLIC_API_URL;
+  if (!url) {
+    throw new Error("NEXT_PUBLIC_API_URL is not set");
+  }
+  return url;
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -22,14 +24,14 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.username || !credentials?.password) return null
+        if (!credentials?.username || !credentials?.password) return null;
 
-        const username = credentials.username.trim().toLowerCase()
+        const username = credentials.username.trim().toLowerCase();
 
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
         try {
-          const res = await fetch(`${API_URL}/api/v1/auth/login`, {
+          const res = await fetch(`${getApiUrl()}/api/v1/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -37,16 +39,17 @@ export const authOptions: NextAuthOptions = {
               password: credentials.password,
             }),
             signal: controller.signal,
-          })
+          });
 
-          if (res.status === 401) return null
-          if (!res.ok) throw new Error(`Server error: ${res.status}`)
-          const data = (await res.json()) as { access_token: string }
+          if (res.status === 401) return null;
+          if (!res.ok) throw new Error(`Server error: ${res.status}`);
+          const data = (await res.json()) as { access_token: string };
 
-          const payload = decodeJwtPayload<{ exp?: number; is_admin?: boolean }>(data.access_token)
-          const expiresAt = payload?.exp
-            ? payload.exp * 1000
-            : Date.now() + 4 * 60 * 60 * 1000
+          const payload = decodeJwtPayload<{
+            exp?: number;
+            is_admin?: boolean;
+          }>(data.access_token);
+          const expiresAt = payload?.exp ? payload.exp * 1000 : Date.now() + 4 * 60 * 60 * 1000;
 
           return {
             id: username,
@@ -54,12 +57,12 @@ export const authOptions: NextAuthOptions = {
             accessToken: data.access_token,
             accessTokenExpires: expiresAt,
             isAdmin: payload?.is_admin ?? false,
-          }
+          };
         } catch (err) {
-          console.error("[AUTH] Login failed:", err instanceof Error ? err.message : err)
-          return null
+          console.error("[AUTH] Login failed:", err instanceof Error ? err.message : err);
+          return null;
         } finally {
-          clearTimeout(timeoutId)
+          clearTimeout(timeoutId);
         }
       },
     }),
@@ -67,37 +70,38 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.accessToken = user.accessToken
-        token.accessTokenExpires = user.accessTokenExpires
-        token.isAdmin = user.isAdmin
+        token.accessToken = user.accessToken;
+        token.accessTokenExpires = user.accessTokenExpires;
+        token.isAdmin = user.isAdmin;
       }
 
       // Strip expired backend token during session rotation so that
       // the session callback and middleware both see an invalid token.
-      const expiresAt = token.accessTokenExpires
+      const expiresAt = token.accessTokenExpires;
       if (typeof expiresAt === "number" && Date.now() > expiresAt) {
-        token.accessToken = undefined
-        token.accessTokenExpires = undefined
-        token.isAdmin = undefined
+        token.accessToken = undefined;
+        token.accessTokenExpires = undefined;
+        token.isAdmin = undefined;
       }
 
-      return token
+      return token;
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken
+      session.accessToken = token.accessToken;
       session.user = {
         ...session.user,
         name: token.name,
         is_admin: token.isAdmin ?? false,
-      }
-      return session
+      };
+      return session;
     },
   },
   pages: {
     signIn: "/login",
+    error: "/login",
   },
   session: {
     strategy: "jwt",
   },
   secret: NEXTAUTH_SECRET,
-}
+};

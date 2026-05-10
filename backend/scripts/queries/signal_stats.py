@@ -10,6 +10,8 @@ from datetime import date
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
+sys.path.insert(0, "/app")
+
 from app.core.db_url import to_sync_url
 
 logging.basicConfig(

@@ -1,0 +1,10 @@
+#cloud-config
+# Paste into Oracle Cloud Console → Create Instance → Paste cloud-init script
+# Replace YOUR_REPO with your GitHub username/repo
+
+runcmd:
+  - |
+    curl -fsSL https://raw.githubusercontent.com/ToGiaBaoKDL/dbot-tracking/main/scripts/setup-oracle.sh | bash
+  - |
+    echo "=== Setup complete ==="
+    echo "Next: copy .env, then run: cd /opt/dbot-tracking && make deploy-oracle"

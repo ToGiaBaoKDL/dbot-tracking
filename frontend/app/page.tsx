@@ -1,39 +1,41 @@
-"use client"
+"use client";
 
-import { useEffect } from "react"
-import { useSession, signOut } from "next-auth/react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { SignalsDashboard } from "@/features/signals/signals-dashboard"
-import { Shield, Moon, Sun } from "lucide-react"
-import { useThemeToggle } from "@/lib/hooks"
+import { useEffect } from "react";
+import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { SignalsDashboard } from "@/features/signals/signals-dashboard";
+import { Shield, Moon, Sun } from "lucide-react";
+import { useThemeToggle } from "@/lib/hooks";
 
 export default function HomePage() {
-  const { data: session, status } = useSession()
-  const router = useRouter()
-  const { isDark, handleToggle } = useThemeToggle()
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const { isDark, handleToggle } = useThemeToggle();
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login")
+      router.push("/login");
     }
-  }, [status, router])
+  }, [status, router]);
 
   if (status === "loading" || status === "unauthenticated" || !session?.accessToken) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="animate-pulse text-lg text-muted-foreground">Đang tải...</div>
       </div>
-    )
+    );
   }
 
-  const isAdmin = session.user?.is_admin === true
+  const isAdmin = session.user?.is_admin === true;
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-3 sm:px-10 sm:py-4">
-          <h1 className="text-lg font-bold text-card-foreground sm:text-xl">DBOT Signals Tracker</h1>
+          <h1 className="text-lg font-bold text-card-foreground sm:text-xl">
+            DBOT Signals Tracker
+          </h1>
           <div className="flex items-center gap-2 sm:gap-4">
             {isAdmin && (
               <Link
@@ -55,7 +57,7 @@ export default function HomePage() {
             <button
               type="button"
               onClick={async () => {
-                await signOut({ callbackUrl: "/login" }).catch(() => {})
+                await signOut({ callbackUrl: "/login" }).catch(() => {});
               }}
               className="cursor-pointer rounded-md bg-muted px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/80 sm:px-3 sm:text-sm"
             >
@@ -70,5 +72,5 @@ export default function HomePage() {
         <SignalsDashboard />
       </main>
     </div>
-  )
+  );
 }

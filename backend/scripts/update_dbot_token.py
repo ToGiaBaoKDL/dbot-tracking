@@ -8,7 +8,7 @@ import sys
 sys.path.insert(0, "/app")
 
 from app.core.database import _get_session_maker
-from app.repositories.token_repo import TokenRepository
+from app.repositories.token_repo import DbotTokenRepository
 
 
 def _validate_token(token: str) -> None:
@@ -22,7 +22,7 @@ async def update_token(token: str) -> None:
 
     session_maker = _get_session_maker()
     async with session_maker() as session:
-        repo = TokenRepository(session)
+        repo = DbotTokenRepository(session)
         await repo.create_or_update(token=token)
         await session.commit()
         print("[INFO] DBOT token updated successfully")

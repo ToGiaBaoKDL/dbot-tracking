@@ -1,124 +1,129 @@
-"use client"
+"use client";
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react"
-import { useSession } from "next-auth/react"
-import { useSearchParams, useRouter } from "next/navigation"
-import { format } from "date-fns"
-import useSWR from "swr"
-import { apiFetch } from "@/lib/api"
-import { SignalsTable } from "./signals-table"
-import { signalsDataSchema } from "@/lib/schemas"
-import type { SignalsData, SignalType } from "@/lib/schemas"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Select } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
-import { Alert } from "@/components/ui/alert"
-import { useDebouncedCallback } from "@/lib/hooks"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { format } from "date-fns";
+import useSWR from "swr";
+import { apiFetch } from "@/lib/api";
+import { SignalsTable } from "./signals-table";
+import { signalsDataSchema } from "@/lib/schemas";
+import type { SignalsData, SignalType } from "@/lib/schemas";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Alert } from "@/components/ui/alert";
+import { useDebouncedCallback } from "@/lib/hooks";
 
 function getValidSignalType(value: string | null): SignalType {
-  if (value === "BUY" || value === "SELL") return value
-  return "ALL"
+  if (value === "BUY" || value === "SELL") return value;
+  return "ALL";
 }
 
 function getValidFutureDays(value: string | null): number {
-  const n = Number(value)
-  if (!Number.isNaN(n) && n >= 1 && n <= 14) return n
-  return 7
+  const n = Number(value);
+  if (!Number.isNaN(n) && n >= 1 && n <= 14) return n;
+  return 7;
 }
 
 export function SignalsDashboard() {
-  const { data: session } = useSession()
-  const searchParams = useSearchParams()
-  const router = useRouter()
+  const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  const today = useMemo(() => format(new Date(), "yyyy-MM-dd"), [])
+  // ── Hydration-safe today: empty on server, set on client mount ──
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    setToday(format(new Date(), "yyyy-MM-dd"));
+  }, []);
 
   // ── Committed values: read directly from URL (single source of truth) ──
-  const committedDate = searchParams.get("date") || today
-  const committedFutureDays = getValidFutureDays(searchParams.get("future_days"))
-  const committedSignalType = getValidSignalType(searchParams.get("signal_type"))
-  const committedSymbol = searchParams.get("symbol") || ""
+  const committedDate = searchParams.get("date") || today || format(new Date(), "yyyy-MM-dd");
+  const committedFutureDays = getValidFutureDays(searchParams.get("future_days"));
+  const committedSignalType = getValidSignalType(searchParams.get("signal_type"));
+  const committedSymbol = searchParams.get("symbol") || "";
 
   // ── Display state: local buffer for interactive inputs ──
-  const [dateInput, setDateInput] = useState(committedDate)
-  const [signalTypeInput, setSignalTypeInput] = useState<SignalType>(committedSignalType)
-  const [symbolInput, setSymbolInput] = useState(committedSymbol)
-  const [sliderValue, setSliderValue] = useState(committedFutureDays)
+  const [dateInput, setDateInput] = useState(committedDate);
+  const [signalTypeInput, setSignalTypeInput] = useState<SignalType>(committedSignalType);
+  const [symbolInput, setSymbolInput] = useState(committedSymbol);
+  const [sliderValue, setSliderValue] = useState(committedFutureDays);
 
   // Sync display state when URL changes (browser back/forward / external navigation)
   useEffect(() => {
-    setDateInput(searchParams.get("date") || today)
-    setSignalTypeInput(getValidSignalType(searchParams.get("signal_type")))
-    setSymbolInput(searchParams.get("symbol") || "")
-    setSliderValue(getValidFutureDays(searchParams.get("future_days")))
-  }, [searchParams, today])
+    const fallback = today || format(new Date(), "yyyy-MM-dd");
+    setDateInput(searchParams.get("date") || fallback);
+    setSignalTypeInput(getValidSignalType(searchParams.get("signal_type")));
+    setSymbolInput(searchParams.get("symbol") || "");
+    setSliderValue(getValidFutureDays(searchParams.get("future_days")));
+  }, [searchParams, today]);
 
   // ── updateQuery: NEVER depend on searchParams to avoid feedback loops ──
-  const searchParamsRef = useRef(searchParams)
-  searchParamsRef.current = searchParams
+  const searchParamsRef = useRef(searchParams);
+  searchParamsRef.current = searchParams;
 
   const updateQuery = useCallback(
     (updates: Record<string, string>) => {
-      const params = new URLSearchParams(searchParamsRef.current.toString())
+      const params = new URLSearchParams(searchParamsRef.current.toString());
       Object.entries(updates).forEach(([key, value]) => {
         if (value) {
-          params.set(key, value)
+          params.set(key, value);
         } else {
-          params.delete(key)
+          params.delete(key);
         }
-      })
-      const newQuery = params.toString()
-      const currentQuery = searchParamsRef.current.toString()
+      });
+      const newQuery = params.toString();
+      const currentQuery = searchParamsRef.current.toString();
       // Guard: skip replace if URL hasn't actually changed
       if (newQuery !== currentQuery) {
-        router.replace(`?${newQuery}`, { scroll: false })
+        router.replace(`?${newQuery}`, { scroll: false });
       }
     },
-    [router]
-  )
+    [router],
+  );
 
   // ── Debounced callback for symbol (no effects, no loops) ──
   const debouncedUpdateSymbol = useDebouncedCallback((value: string) => {
-    updateQuery({ symbol: value })
-  }, 300)
+    updateQuery({ symbol: value });
+  }, 300);
 
   // ── Handlers ──
   const handleDateChange = (value: string) => {
-    setDateInput(value)
-    updateQuery({ date: value })
-  }
+    setDateInput(value);
+    updateQuery({ date: value });
+  };
 
   const handleSignalTypeChange = (value: SignalType) => {
-    setSignalTypeInput(value)
-    updateQuery({ signal_type: value })
-  }
+    setSignalTypeInput(value);
+    updateQuery({ signal_type: value });
+  };
 
   const handleSymbolChange = (value: string) => {
-    const upper = value.toUpperCase()
-    setSymbolInput(upper)
-    debouncedUpdateSymbol(upper.trim())
-  }
+    const upper = value.toUpperCase();
+    setSymbolInput(upper);
+    debouncedUpdateSymbol(upper.trim());
+  };
 
   const handleSliderChange = (value: number) => {
-    setSliderValue(value)
-  }
+    setSliderValue(value);
+  };
 
   const handleSliderCommit = () => {
-    updateQuery({ future_days: String(sliderValue) })
-  }
+    updateQuery({ future_days: String(sliderValue) });
+  };
 
   // ── API path derived from committed URL values only ──
   const path = useMemo(() => {
-    const params = new URLSearchParams()
-    params.set("date", committedDate)
-    params.set("future_days", String(committedFutureDays))
-    params.set("signal_type", committedSignalType)
+    const params = new URLSearchParams();
+    params.set("date", committedDate);
+    params.set("future_days", String(committedFutureDays));
+    params.set("signal_type", committedSignalType);
     if (committedSymbol.trim()) {
-      params.set("symbol", committedSymbol.trim())
+      params.set("symbol", committedSymbol.trim());
     }
-    return `/api/v1/signals?${params.toString()}`
-  }, [committedDate, committedFutureDays, committedSignalType, committedSymbol])
+    return `/api/v1/signals?${params.toString()}`;
+  }, [committedDate, committedFutureDays, committedSignalType, committedSymbol]);
 
   const { data, error, isValidating, mutate } = useSWR<SignalsData>(
     session?.accessToken ? [path, session.accessToken] : null,
@@ -127,11 +132,11 @@ export function SignalsDashboard() {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       errorRetryCount: 2,
-    }
-  )
+    },
+  );
 
-  const showBuy = committedSignalType === "ALL" || committedSignalType === "BUY"
-  const showSell = committedSignalType === "ALL" || committedSignalType === "SELL"
+  const showBuy = committedSignalType === "ALL" || committedSignalType === "BUY";
+  const showSell = committedSignalType === "ALL" || committedSignalType === "SELL";
 
   return (
     <div className="space-y-6">
@@ -195,8 +200,13 @@ export function SignalsDashboard() {
             onMouseUp={handleSliderCommit}
             onTouchEnd={handleSliderCommit}
             onKeyUp={(e) => {
-              if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") {
-                handleSliderCommit()
+              if (
+                e.key === "ArrowLeft" ||
+                e.key === "ArrowRight" ||
+                e.key === "ArrowUp" ||
+                e.key === "ArrowDown"
+              ) {
+                handleSliderCommit();
               }
             }}
             aria-label="Số ngày hiển thị giá tương lai"
@@ -218,11 +228,7 @@ export function SignalsDashboard() {
       )}
 
       {data && (
-        <div
-          className={`grid grid-cols-1 gap-6 ${
-            showBuy && showSell ? "lg:grid-cols-2" : ""
-          }`}
-        >
+        <div className={`grid grid-cols-1 gap-6 ${showBuy && showSell ? "lg:grid-cols-2" : ""}`}>
           {showBuy && (
             <SignalsTable
               title="MUA"
@@ -250,5 +256,5 @@ export function SignalsDashboard() {
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -1,32 +1,32 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useMemo } from "react"
-import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import useSWR from "swr"
-import { apiFetch } from "@/lib/api"
-import { dbotTokenFormSchema, type DbotTokenForm, type DbotTokenDisplay } from "@/lib/schemas"
-import { useFormMessage } from "@/lib/hooks"
-import { KeyRound, Save, Loader2, Eye, EyeOff, Clock } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Alert } from "@/components/ui/alert"
-import { PageHeader } from "@/components/page-header"
-import { Skeleton } from "@/components/ui/skeleton"
-import { decodeJwtExp } from "@/lib/jwt"
+import { useState, useEffect, useMemo } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import useSWR from "swr";
+import { apiFetch } from "@/lib/api";
+import { dbotTokenFormSchema, type DbotTokenForm, type DbotTokenDisplay } from "@/lib/schemas";
+import { useFormMessage } from "@/lib/hooks";
+import { KeyRound, Save, Loader2, Eye, EyeOff, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
+import { PageHeader } from "@/components/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { decodeJwtExp } from "@/lib/jwt";
 
 export default function TokenPage() {
-  const { data: session, status } = useSession()
-  const router = useRouter()
-  const { message, isError, setSuccess, setError, clear } = useFormMessage()
-  const [showToken, setShowToken] = useState(false)
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const { message, isError, setSuccess, setError, clear } = useFormMessage();
+  const [showToken, setShowToken] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login")
+      router.push("/login");
     }
-  }, [status, router])
+  }, [status, router]);
 
   const {
     register,
@@ -36,55 +36,55 @@ export default function TokenPage() {
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(dbotTokenFormSchema),
-  })
+  });
 
-  const tokenInput = watch("token")
+  const tokenInput = watch("token");
   const inputExpiry = useMemo(() => {
-    if (!tokenInput || typeof tokenInput !== "string") return null
-    return decodeJwtExp(tokenInput)
-  }, [tokenInput])
+    if (!tokenInput || typeof tokenInput !== "string") return null;
+    return decodeJwtExp(tokenInput);
+  }, [tokenInput]);
 
-  const accessToken = session?.accessToken
+  const accessToken = session?.accessToken;
 
   const { data: currentToken, mutate } = useSWR<DbotTokenDisplay>(
     accessToken ? ["/api/v1/admin/dbot-token", accessToken] : null,
     ([path, token]: [string, string]) => apiFetch(path, token),
-    { revalidateOnFocus: false }
-  )
+    { revalidateOnFocus: false },
+  );
 
   const currentExpiry = useMemo(() => {
-    if (!currentToken?.token || typeof currentToken.token !== "string") return null
-    return decodeJwtExp(currentToken.token)
-  }, [currentToken])
+    if (!currentToken?.token || typeof currentToken.token !== "string") return null;
+    return decodeJwtExp(currentToken.token);
+  }, [currentToken]);
 
   if (status === "loading") {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Đang tải...</div>
       </div>
-    )
+    );
   }
 
   if (!accessToken) {
-    return null
+    return null;
   }
 
   const onSubmit = async (data: DbotTokenForm) => {
-    clear()
+    clear();
 
     try {
       await apiFetch("/api/v1/admin/dbot-token", accessToken, {
         method: "PATCH",
         body: JSON.stringify({ token: data.token }),
-      })
+      });
 
-      setSuccess("Cập nhật token thành công")
-      reset()
-      mutate()
+      setSuccess("Cập nhật token thành công");
+      reset();
+      mutate();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Cập nhật thất bại")
+      setError(err instanceof Error ? err.message : "Cập nhật thất bại");
     }
-  }
+  };
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -132,18 +132,14 @@ export default function TokenPage() {
                     </button>
                   </div>
                   <div className="mt-2 break-all font-mono text-xs text-foreground">
-                    {showToken
-                      ? currentToken.token
-                      : currentToken.token.slice(0, 20) + "…"}
+                    {showToken ? currentToken.token : currentToken.token.slice(0, 20) + "…"}
                   </div>
                 </div>
 
                 {currentExpiry && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Clock className="h-4 w-4" />
-                    <span>
-                      Hết hạn: {currentExpiry.toLocaleString("vi-VN")}
-                    </span>
+                    <span>Hết hạn: {currentExpiry.toLocaleString("vi-VN")}</span>
                   </div>
                 )}
               </>
@@ -203,5 +199,5 @@ export default function TokenPage() {
         </form>
       </div>
     </div>
-  )
+  );
 }

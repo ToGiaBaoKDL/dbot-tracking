@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -9,32 +9,33 @@ import {
   flexRender,
   type ColumnDef,
   type SortingState,
-} from "@tanstack/react-table"
-import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from "lucide-react"
-import { format, parseISO } from "date-fns"
-import type { SignalItem } from "@/lib/schemas"
-import { Button } from "@/components/ui/button"
+} from "@tanstack/react-table";
+import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import type { SignalItem } from "@/lib/schemas";
+import { Button } from "@/components/ui/button";
 
 interface SignalsTableProps {
-  title: string
-  data: SignalItem[]
-  date: string
-  futureDates: string[]
-  variant: "buy" | "sell"
+  title: string;
+  data: SignalItem[];
+  date: string;
+  futureDates: string[];
+  variant: "buy" | "sell";
 }
 
-const PAGE_SIZE = 10
-
-const COL_SYMBOL_W = 72 // ~4.5rem
+const PAGE_SIZE = 10;
 
 export function SignalsTable({ title, data, date, futureDates, variant }: SignalsTableProps) {
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE })
-  const [sorting, setSorting] = useState<SortingState>([])
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: PAGE_SIZE,
+  });
+  const [sorting, setSorting] = useState<SortingState>([]);
 
   // Reset to first page when data changes (new filter / new date)
   useEffect(() => {
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-  }, [data])
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [data]);
 
   const columns = useMemo<ColumnDef<SignalItem>[]>(
     () => [
@@ -43,7 +44,9 @@ export function SignalsTable({ title, data, date, futureDates, variant }: Signal
         header: "Mã",
         enableSorting: false,
         meta: { frozen: true, offset: 0 },
-        cell: ({ row }) => <span className="font-semibold text-foreground">{row.original.symbol}</span>,
+        cell: ({ row }) => (
+          <span className="font-semibold text-foreground">{row.original.symbol}</span>
+        ),
       },
       {
         accessorKey: "volume",
@@ -56,9 +59,9 @@ export function SignalsTable({ title, data, date, futureDates, variant }: Signal
         header: "Tín hiệu",
         enableSorting: false,
         cell: ({ row }) => {
-          const sig = row.original.signal
+          const sig = row.original.signal;
           if (!sig) {
-            return <span className="text-xs text-muted-foreground">-</span>
+            return <span className="text-xs text-muted-foreground">-</span>;
           }
           return (
             <span
@@ -70,7 +73,7 @@ export function SignalsTable({ title, data, date, futureDates, variant }: Signal
             >
               {sig}
             </span>
-          )
+          );
         },
       },
       {
@@ -84,13 +87,13 @@ export function SignalsTable({ title, data, date, futureDates, variant }: Signal
         header: format(parseISO(dateStr), "dd/MM"),
         enableSorting: false,
         cell: ({ row }: { row: { original: SignalItem } }) => {
-          const price = row.original.future_prices?.[i]
-          return price?.toFixed(2) ?? "-"
+          const price = row.original.future_prices?.[i];
+          return price?.toFixed(2) ?? "-";
         },
       })),
     ],
-    [futureDates, variant]
-  )
+    [futureDates, variant],
+  );
 
   const table = useReactTable({
     data,
@@ -101,11 +104,11 @@ export function SignalsTable({ title, data, date, futureDates, variant }: Signal
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
-  })
+  });
 
-  const pageCount = table.getPageCount()
-  const canPrevious = table.getCanPreviousPage()
-  const canNext = table.getCanNextPage()
+  const pageCount = table.getPageCount();
+  const canPrevious = table.getCanPreviousPage();
+  const canNext = table.getCanNextPage();
 
   return (
     <div className="rounded-lg border border-border bg-card shadow-sm">
@@ -120,26 +123,23 @@ export function SignalsTable({ title, data, date, futureDates, variant }: Signal
       </div>
 
       <div className="overflow-x-auto">
-        <table
-          className="w-full text-sm"
-          aria-label={`Bảng tín hiệu ${title}`}
-        >
+        <table className="w-full text-sm" aria-label={`Bảng tín hiệu ${title}`}>
           <thead className="bg-muted">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
-                  const meta = header.column.columnDef.meta as { frozen?: boolean; offset?: number } | undefined
-                  const isFrozen = meta?.frozen
-                  const offset = meta?.offset ?? 0
-                  const isSorted = header.column.getIsSorted()
-                  const canSort = header.column.getCanSort()
+                  const meta = header.column.columnDef.meta as
+                    | { frozen?: boolean; offset?: number }
+                    | undefined;
+                  const isFrozen = meta?.frozen;
+                  const offset = meta?.offset ?? 0;
+                  const isSorted = header.column.getIsSorted();
+                  const canSort = header.column.getCanSort();
                   return (
                     <th
                       key={header.id}
                       className={`whitespace-nowrap px-3 py-2 text-left font-medium text-muted-foreground ${
-                        isFrozen
-                          ? `sticky z-20 bg-muted shadow-[2px_0_0_0_hsl(var(--border))]`
-                          : ""
+                        isFrozen ? `sticky z-20 bg-muted shadow-[2px_0_0_0_hsl(var(--border))]` : ""
                       } ${canSort ? "cursor-pointer select-none" : ""}`}
                       style={isFrozen ? { left: offset } : undefined}
                       onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
@@ -154,10 +154,12 @@ export function SignalsTable({ title, data, date, futureDates, variant }: Signal
                       <div className="flex items-center gap-1">
                         {flexRender(header.column.columnDef.header, header.getContext())}
                         {isSorted === "asc" && <ArrowUp className="h-3 w-3" aria-hidden="true" />}
-                        {isSorted === "desc" && <ArrowDown className="h-3 w-3" aria-hidden="true" />}
+                        {isSorted === "desc" && (
+                          <ArrowDown className="h-3 w-3" aria-hidden="true" />
+                        )}
                       </div>
                     </th>
-                  )
+                  );
                 })}
               </tr>
             ))}
@@ -166,22 +168,22 @@ export function SignalsTable({ title, data, date, futureDates, variant }: Signal
             {table.getRowModel().rows.map((row) => (
               <tr key={row.id} className="hover:bg-muted/50">
                 {row.getVisibleCells().map((cell) => {
-                  const meta = cell.column.columnDef.meta as { frozen?: boolean; offset?: number } | undefined
-                  const isFrozen = meta?.frozen
-                  const offset = meta?.offset ?? 0
+                  const meta = cell.column.columnDef.meta as
+                    | { frozen?: boolean; offset?: number }
+                    | undefined;
+                  const isFrozen = meta?.frozen;
+                  const offset = meta?.offset ?? 0;
                   return (
                     <td
                       key={cell.id}
                       className={`whitespace-nowrap px-3 py-2 text-foreground tabular-nums ${
-                        isFrozen
-                          ? `sticky z-10 bg-card shadow-[2px_0_0_0_hsl(var(--border))]`
-                          : ""
+                        isFrozen ? `sticky z-10 bg-card shadow-[2px_0_0_0_hsl(var(--border))]` : ""
                       }`}
                       style={isFrozen ? { left: offset } : undefined}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
-                  )
+                  );
                 })}
               </tr>
             ))}
@@ -223,5 +225,5 @@ export function SignalsTable({ title, data, date, futureDates, variant }: Signal
         </div>
       )}
     </div>
-  )
+  );
 }

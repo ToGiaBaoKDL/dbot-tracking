@@ -1,85 +1,88 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from "react"
-import { toggleTheme as _toggleTheme } from "@/components/theme-provider"
+import { useState, useEffect, useCallback, useRef } from "react";
+import { toggleTheme as _toggleTheme } from "@/components/theme-provider";
 
 export function useDebouncedCallback<T extends (...args: any[]) => void>(
   callback: T,
-  delay: number
+  delay: number,
 ) {
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const callbackRef = useRef(callback)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const callbackRef = useRef(callback);
 
   useEffect(() => {
-    callbackRef.current = callback
-  }, [callback])
+    callbackRef.current = callback;
+  }, [callback]);
 
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
+        clearTimeout(timeoutRef.current);
       }
-    }
-  }, [])
+    };
+  }, []);
 
   return useCallback(
     (...args: Parameters<T>) => {
       if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
+        clearTimeout(timeoutRef.current);
       }
       timeoutRef.current = setTimeout(() => {
-        callbackRef.current(...args)
-      }, delay)
+        callbackRef.current(...args);
+      }, delay);
     },
-    [delay]
-  )
+    [delay],
+  );
 }
 
 export function useThemeToggle() {
-  const [isDark, setIsDark] = useState(false)
+  const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
-    setIsDark(document.documentElement.classList.contains("dark"))
-  }, [])
+    setIsDark(document.documentElement.classList.contains("dark"));
+  }, []);
 
   const handleToggle = useCallback(() => {
-    _toggleTheme()
-    setIsDark((prev) => !prev)
-  }, [])
+    _toggleTheme();
+    setIsDark((prev) => !prev);
+  }, []);
 
-  return { isDark, handleToggle }
+  return { isDark, handleToggle };
 }
 
 interface FormMessageState {
-  message: string
-  isError: boolean
+  message: string;
+  isError: boolean;
 }
 
 export function useEscapeKey(onEscape: () => void, enabled: boolean) {
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onEscape()
-    }
-    document.addEventListener("keydown", handleKey)
-    return () => document.removeEventListener("keydown", handleKey)
-  }, [enabled, onEscape])
+      if (e.key === "Escape") onEscape();
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [enabled, onEscape]);
 }
 
 export function useFormMessage() {
-  const [state, setState] = useState<FormMessageState>({ message: "", isError: false })
+  const [state, setState] = useState<FormMessageState>({
+    message: "",
+    isError: false,
+  });
 
   const setSuccess = useCallback((message: string) => {
-    setState({ message, isError: false })
-  }, [])
+    setState({ message, isError: false });
+  }, []);
 
   const setError = useCallback((message: string) => {
-    setState({ message, isError: true })
-  }, [])
+    setState({ message, isError: true });
+  }, []);
 
   const clear = useCallback(() => {
-    setState({ message: "", isError: false })
-  }, [])
+    setState({ message: "", isError: false });
+  }, []);
 
-  return { ...state, setSuccess, setError, clear }
+  return { ...state, setSuccess, setError, clear };
 }

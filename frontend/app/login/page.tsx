@@ -1,29 +1,29 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { signIn } from "next-auth/react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { loginSchema, type LoginForm } from "@/lib/schemas"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert } from "@/components/ui/alert"
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { loginSchema, type LoginForm } from "@/lib/schemas";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert } from "@/components/ui/alert";
 
 export default function LoginPage() {
-  const [error, setError] = useState("")
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const rawCallback = searchParams.get("callbackUrl") || "/"
+  const [error, setError] = useState("");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawCallback = searchParams.get("callbackUrl") || "/";
   const callbackUrl = (() => {
     try {
-      const u = new URL(rawCallback, window.location.origin)
-      return u.pathname === rawCallback ? rawCallback : "/"
+      const u = new URL(rawCallback, window.location.origin);
+      return u.pathname === rawCallback ? rawCallback : "/";
     } catch {
-      return "/"
+      return "/";
     }
-  })()
+  })();
 
   const {
     register,
@@ -31,10 +31,10 @@ export default function LoginPage() {
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(loginSchema),
-  })
+  });
 
   const onSubmit = async (data: LoginForm) => {
-    setError("")
+    setError("");
 
     try {
       const result = await signIn("credentials", {
@@ -42,17 +42,17 @@ export default function LoginPage() {
         password: data.password,
         redirect: false,
         callbackUrl,
-      })
+      });
 
       if (result?.error) {
-        setError("Sai tên đăng nhập hoặc mật khẩu")
+        setError("Sai tên đăng nhập hoặc mật khẩu");
       } else {
-        router.push(callbackUrl)
+        router.push(callbackUrl);
       }
     } catch {
-      setError("Không thể kết nối đến máy chủ")
+      setError("Không thể kết nối đến máy chủ");
     }
-  }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -63,9 +63,7 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-            {error && (
-              <Alert variant="destructive">{error}</Alert>
-            )}
+            {error && <Alert variant="destructive">{error}</Alert>}
 
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-card-foreground">
@@ -114,5 +112,5 @@ export default function LoginPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

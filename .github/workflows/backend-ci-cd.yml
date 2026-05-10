@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "backend/**"
+      - "docker-compose.prod.yml"
+      - "scripts/**"
       - ".github/workflows/backend-ci-cd.yml"
   pull_request:
     branches: [main]
@@ -12,6 +14,12 @@ on:
       - "backend/**"
       - ".github/workflows/backend-ci-cd.yml"
   workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   REGISTRY: docker.io
@@ -21,6 +29,9 @@ jobs:
   test-backend:
     name: Test Backend
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: ./backend
@@ -32,6 +43,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           version: "latest"
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install 3.12
@@ -58,8 +70,11 @@ jobs:
   build-and-push:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: test-backend
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'deploy:'))
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -95,3 +110,32 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
+
+  deploy-oracle:
+    name: Deploy to Oracle Cloud
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'deploy:'))
+    permissions:
+      contents: read
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            cd /opt/dbot-tracking
+            git fetch origin main
+            git reset --hard origin/main
+            bash scripts/deploy-oracle.sh
+
+      - name: Post-deploy health check
+        run: |
+          sleep 15
+          curl --fail --silent https://${{ secrets.ORACLE_API_DOMAIN }}/health || exit 1
+        timeout-minutes: 2

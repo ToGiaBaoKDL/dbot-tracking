@@ -1,24 +1,24 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useSession, signOut } from "next-auth/react"
-import { KeyRound, Users, LayoutDashboard, LogOut, Menu, X, Moon, Sun } from "lucide-react"
-import { useThemeToggle, useEscapeKey } from "@/lib/hooks"
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
+import { KeyRound, Users, LayoutDashboard, LogOut, Menu, X, Moon, Sun } from "lucide-react";
+import { useThemeToggle, useEscapeKey } from "@/lib/hooks";
 
 const navItems = [
   { href: "/admin/token", label: "DBOT Token", icon: KeyRound },
   { href: "/admin/users", label: "Users", icon: Users },
-]
+];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  const { data: session } = useSession()
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const { isDark, handleToggle } = useThemeToggle()
+  const pathname = usePathname();
+  const { data: session } = useSession();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isDark, handleToggle } = useThemeToggle();
 
-  useEscapeKey(() => setIsMobileMenuOpen(false), isMobileMenuOpen)
+  useEscapeKey(() => setIsMobileMenuOpen(false), isMobileMenuOpen);
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -36,7 +36,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         className={`fixed inset-y-0 left-0 z-50 flex w-64 transform flex-col border-r border-border bg-card transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
-
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
           <Link href="/" className="flex items-center gap-2 text-lg font-bold text-card-foreground">
@@ -55,8 +54,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <nav className="flex-1 space-y-1 overflow-y-auto p-4">
           {navItems.map((item) => {
-            const Icon = item.icon
-            const isActive = pathname === item.href
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
             return (
               <Link
                 key={item.href}
@@ -72,7 +71,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Icon className="h-4 w-4" />
                 {item.label}
               </Link>
-            )
+            );
           })}
         </nav>
 
@@ -89,7 +88,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <button
               type="button"
               onClick={async () => {
-                await signOut({ callbackUrl: "/login" }).catch(() => {})
+                await signOut({ callbackUrl: "/login" }).catch(() => {});
               }}
               className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
             >
@@ -118,5 +117,5 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="p-4 lg:p-8">{children}</div>
       </main>
     </div>
-  )
+  );
 }

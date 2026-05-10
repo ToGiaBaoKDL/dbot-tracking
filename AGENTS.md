@@ -69,7 +69,7 @@ Both DAGs use `DockerOperator` pulling `toilachuoituyet/dbot-backend:latest` and
 ## Auth Flow
 
 1. User logs in via `/login` (NextAuth Credentials)
-2. Backend validates username/password (bcrypt) → returns JWT (4h expiry)
+2. Backend validates username/password (argon2/bcrypt) → returns JWT (4h expiry)
 3. Frontend stores JWT via NextAuth (httpOnly cookie) with expiry tracking
 4. All API calls include `Authorization: Bearer <token>`
 5. Middleware + client auto-redirect to `/login` when JWT expires
@@ -77,15 +77,15 @@ Both DAGs use `DockerOperator` pulling `toilachuoituyet/dbot-backend:latest` and
 
 ## Development Commands
 
-### Backend Setup (uv + Python 3.11)
+### Backend Setup (uv + Python 3.12)
 
 ```bash
 # Install uv (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Create virtual environment with Python 3.11
+# Create virtual environment with Python 3.12
 cd backend
-uv venv --python 3.11
+uv venv --python 3.12
 
 # Install dependencies
 uv pip install -e ".[dev]"
@@ -127,8 +127,8 @@ make init-db
 - **FastAPI** + **SQLAlchemy 2.0** (async) + **Pydantic v2**
 - **Repository Pattern**: 1 file per repository class
 - **Service Layer**: Business logic + transaction management
-- **Security**: JWT with `iss`/`aud`/`iat`/`jti` claims (PyJWT), bcrypt password hashing, Fernet encryption for DBOT token
-- **Ruff**: Lint + format with `E,F,I,N,W,UP,B,C4,SIM,ARG` rules, target Python 3.11
+- **Security**: JWT with `iss`/`aud`/`iat`/`jti` claims (PyJWT), argon2 password hashing (bcrypt legacy compatible), Fernet encryption for DBOT token
+- **Ruff**: Lint + format with `E,F,I,N,W,UP,B,C4,SIM,ARG` rules, target Python 3.12
 - **Logging**: Structured `[timestamp] [level] message` via `logging` module
 - **Package manager**: `uv` (no pip, no requirements.txt, no poetry)
 
@@ -184,20 +184,21 @@ make init-db
 ├── docker/
 │   └── postgres/
 │       └── init.sql      Auto-create airflow DB
-├── docker-compose.yml        Local dev
-├── docker-compose.swarm.yml  Production Swarm
+├── docker-compose.dev.yml    Local dev
+├── docker-compose.prod.yml   Production (Oracle Cloud)
 ├── Makefile                  Dev commands (uv + npm)
 ├── .env.example              Root env vars (DB, backend, airflow)
 ├── frontend/.env.example     Frontend env vars (NEXT_PUBLIC_*, NEXTAUTH_*)
 └── .github/workflows/
-    └── ci-cd.yml             Build + push Docker image
+    ├── backend-ci-cd.yml     CI/CD + auto-deploy
+    └── frontend-ci.yml       Frontend build + Vercel auto-deploy
 ```
 
 ## Deploy
 
-- **Local**: `make up` or `docker compose up -d`
-- **Frontend**: Vercel (set Root Directory = `frontend/`)
-- **Backend + Airflow**: EC2 with Docker Swarm (`make deploy-swarm`)
+- **Local**: `make up` or `docker compose -f docker-compose.dev.yml up -d`
+- **Frontend**: Vercel via GitHub Actions (tests + deploy on every push to `main`)
+- **Backend + Airflow + DB**: Oracle Cloud Free Tier (Arm VM, 4-6 GB RAM) with `make deploy-oracle`
 
 ## Logging Conventions
 
@@ -216,6 +217,11 @@ make init-db
 - Signal for a stock on a given day can be `NULL` (no signal), `BUY`, or `SELL`.
 - Admin users cannot deactivate their own account (protected API).
 - Non-admin users are blocked from `/admin/*` routes at the frontend middleware level.
-- Swarm deploy uses Docker secrets for `SECRET_KEY` and `POSTGRES_PASSWORD`.
+- Production deploy uses Oracle Cloud Free Tier (Arm VM) with Cloudflare Tunnel.
 - Backend image (`dbot-backend:latest`) is single source of truth for both API and ETL.
 - Local dev uses `uv` for Python dependency management; Docker image also uses `uv pip install`.
+- **Airflow image is built locally** (`docker build -t dbot-airflow:latest ./airflow`) and has `pull_policy: never` in `docker-compose.prod.yml`.
+- **Deploy script** (`scripts/deploy-oracle.sh`) pulls only the backend image, force-recreates airflow after local build, and prunes images older than 7 days to preserve rollback candidates.
+- **Rollback script** (`scripts/rollback.sh`) uses inline `DBOT_BACKEND_IMAGE=` env var — does **not** mutate `.env`. Rollback available via `make rollback-oracle [TAG=...]`.
+- **CI/CD deploy gate**: Build/push + Oracle deploy only trigger on push commits containing `deploy:` or on manual `workflow_dispatch`.
+- **Backup script** (`scripts/backup.sh`) runs via cron, dumps to `/tmp/`, uploads directly to Oracle Object Storage via rclone (S3-compatible API), then deletes the temp file. No local copy is retained.
