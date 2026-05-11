@@ -10,7 +10,6 @@ import { SignalsTable } from "./signals-table";
 import { signalsDataSchema } from "@/lib/schemas";
 import type { SignalsData, SignalType } from "@/lib/schemas";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Alert } from "@/components/ui/alert";
@@ -125,7 +124,7 @@ export function SignalsDashboard() {
     return `/api/v1/signals?${params.toString()}`;
   }, [committedDate, committedFutureDays, committedSignalType, committedSymbol]);
 
-  const { data, error, isValidating, mutate } = useSWR<SignalsData>(
+  const { data, error } = useSWR<SignalsData>(
     session?.accessToken ? [path, session.accessToken] : null,
     ([p, token]: [string, string]) => apiFetch(p, token, { schema: signalsDataSchema }),
     {
@@ -212,12 +211,6 @@ export function SignalsDashboard() {
             aria-label="Số ngày hiển thị giá tương lai"
             label={`${sliderValue} ngày`}
           />
-        </div>
-
-        <div className="ml-auto">
-          <Button onClick={() => mutate()} disabled={isValidating}>
-            {isValidating ? "Đang tải..." : "Tải lại dữ liệu"}
-          </Button>
         </div>
       </div>
 
