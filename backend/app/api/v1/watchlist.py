@@ -28,9 +28,7 @@ async def add_to_watchlist(
     try:
         return await service.add_symbol(current_user["id"], data.symbol)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from None
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from None
 
 
 @router.delete("/{symbol}", status_code=status.HTTP_204_NO_CONTENT)

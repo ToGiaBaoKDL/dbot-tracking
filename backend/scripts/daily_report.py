@@ -108,7 +108,11 @@ def create_xlsx(target_date: date, buy_rows, sell_rows, filepath: str):
         for row_idx, row in enumerate(rows, 2):
             ws.cell(row=row_idx, column=1, value=row["symbol"])
             ws.cell(row=row_idx, column=2, value=str(row["record_date"]))
-            ws.cell(row=row_idx, column=3, value=float(row["close_price"]) if row["close_price"] else None)
+            ws.cell(
+                row=row_idx,
+                column=3,
+                value=float(row["close_price"]) if row["close_price"] else None,
+            )
             ws.cell(row=row_idx, column=4, value=int(row["volume"]) if row["volume"] else None)
             ws.cell(row=row_idx, column=5, value=row["signal"])
             for col in range(1, 6):
@@ -116,7 +120,9 @@ def create_xlsx(target_date: date, buy_rows, sell_rows, filepath: str):
                 cell.fill = fill
                 cell.font = font_color
                 cell.border = THIN_BORDER
-                cell.alignment = Alignment(horizontal="center" if col != 1 else "left", vertical="center")
+                cell.alignment = Alignment(
+                    horizontal="center" if col != 1 else "left", vertical="center"
+                )
         # Auto-width
         for col in range(1, 6):
             ws.column_dimensions[get_column_letter(col)].width = 18
