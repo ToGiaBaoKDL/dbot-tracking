@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { toggleTheme as _toggleTheme } from "@/components/theme-provider";
+import { useTheme } from "next-themes";
 
 export function useDebouncedCallback<T extends (...args: any[]) => void>(
   callback: T,
@@ -36,18 +36,16 @@ export function useDebouncedCallback<T extends (...args: any[]) => void>(
 }
 
 export function useThemeToggle() {
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    setIsDark(document.documentElement.classList.contains("dark"));
-  }, []);
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isDark = resolvedTheme === "dark";
 
   const handleToggle = useCallback(() => {
-    _toggleTheme();
-    setIsDark((prev) => !prev);
-  }, []);
+    setTheme(isDark ? "light" : "dark");
+  }, [isDark, setTheme]);
 
-  return { isDark, handleToggle };
+  return { isDark, handleToggle, mounted };
 }
 
 interface FormMessageState {
@@ -66,11 +64,15 @@ export function useEscapeKey(onEscape: () => void, enabled: boolean) {
   }, [enabled, onEscape]);
 }
 
-export function useFormMessage() {
+export function useFormMessage(autoDismissMs: number = 5000) {
   const [state, setState] = useState<FormMessageState>({
     message: "",
     isError: false,
   });
+
+  const clear = useCallback(() => {
+    setState({ message: "", isError: false });
+  }, []);
 
   const setSuccess = useCallback((message: string) => {
     setState({ message, isError: false });
@@ -80,9 +82,11 @@ export function useFormMessage() {
     setState({ message, isError: true });
   }, []);
 
-  const clear = useCallback(() => {
-    setState({ message: "", isError: false });
-  }, []);
+  useEffect(() => {
+    if (!state.message) return;
+    const id = setTimeout(clear, autoDismissMs);
+    return () => clearTimeout(id);
+  }, [state.message, autoDismissMs, clear]);
 
   return { ...state, setSuccess, setError, clear };
 }

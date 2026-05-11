@@ -89,3 +89,30 @@ class UserListItem(BaseModel):
 
 class UserToggleActive(BaseModel):
     is_active: bool
+
+
+class WatchlistItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    symbol: str
+    created_at: datetime
+
+
+class WatchlistCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    symbol: str = Field(..., min_length=1, max_length=20)
+
+    @field_validator("symbol")
+    @classmethod
+    def uppercase_symbol(cls, v: str) -> str:
+        return v.strip().upper()
+
+
+class WatchlistWithLatestSignal(BaseModel):
+    symbol: str
+    latest_signal: str | None
+    latest_date: date | None
+    close_price: float | None
+    volume: int | None
+    change_pct: float | None
+    is_in_watchlist: bool = True

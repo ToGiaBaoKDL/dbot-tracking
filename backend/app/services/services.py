@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import date, timedelta
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +12,13 @@ from app.repositories.daily_repo import StockDailyDataRepository
 from app.repositories.stock_repo import StockRepository
 from app.repositories.token_repo import DbotTokenRepository
 from app.repositories.user_repo import UserRepository
-from app.schemas.schemas import SignalItem, SignalsResponse
+from app.repositories.watchlist_repo import WatchlistRepository
+from app.schemas.schemas import (
+    SignalItem,
+    SignalsResponse,
+    WatchlistItem,
+    WatchlistWithLatestSignal,
+)
 
 FUTURE_DAYS_BUFFER = 14  # Extra days buffer for holidays/weekends
 
@@ -60,13 +67,18 @@ class StockService:
         return await self.stock_repo.get_all_symbols()
 
 
-def _get_trading_dates(target_date: date, count: int) -> list[date]:
-    """Return the next `count` trading dates (Mon-Fri) after target_date."""
+def _get_trading_dates(
+    target_date: date,
+    count: int,
+    exclude_dates: set[date] | None = None,
+) -> list[date]:
+    """Return the next `count` trading dates (Mon-Fri, excluding holidays) after target_date."""
+    excluded = exclude_dates or set()
     trading_dates: list[date] = []
     offset = 1
     while len(trading_dates) < count:
         d = target_date + timedelta(days=offset)
-        if d.weekday() < 5:  # Mon=0 .. Fri=4
+        if d.weekday() < 5 and d not in excluded:
             trading_dates.append(d)
         offset += 1
     return trading_dates
@@ -77,6 +89,7 @@ def _build_future_prices_map(
     future_records: list[StockDailyData],
     target_date: date,
     future_days: int,
+    exclude_dates: set[date] | None = None,
 ) -> tuple[dict[str, list[float | None]], list[str]]:
     symbol_dates: defaultdict[str, dict[date, float | None]] = defaultdict(dict)
     for r in future_records:
@@ -88,7 +101,7 @@ def _build_future_prices_map(
                 price_val = None
         symbol_dates[r.symbol][r.record_date] = price_val
 
-    trading_dates = _get_trading_dates(target_date, future_days)
+    trading_dates = _get_trading_dates(target_date, future_days, exclude_dates)
     future_dates = [d.isoformat() for d in trading_dates]
 
     all_symbols = list({s.symbol for s in signals})
@@ -130,12 +143,15 @@ class SignalService:
         future_days: int = 7,
         symbol: str | None = None,
         signal_types: list[str] | None = None,
+        exclude_dates: list[date] | None = None,
     ) -> SignalsResponse:
         types = signal_types or ["BUY", "SELL"]
         signals = await self.daily_repo.get_signals_by_date(target_date, types, symbol=symbol)
 
         buy_signals = [s for s in signals if s.signal == "BUY"]
         sell_signals = [s for s in signals if s.signal == "SELL"]
+
+        excluded_set = set(exclude_dates) if exclude_dates else None
 
         future_prices_map: dict[str, list[float | None]] = {}
         future_dates: list[str] = []
@@ -146,7 +162,7 @@ class SignalService:
                 list({s.symbol for s in signals}), start_future, end_future
             )
             future_prices_map, future_dates = _build_future_prices_map(
-                signals, future_records, target_date, future_days
+                signals, future_records, target_date, future_days, excluded_set
             )
 
         return SignalsResponse(
@@ -244,3 +260,79 @@ class UserAdminService:
             "is_active": user.is_active,
             "is_admin": user.is_admin,
         }
+
+
+class WatchlistService:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+        self.watchlist_repo = WatchlistRepository(session)
+        self.daily_repo = StockDailyDataRepository(session)
+        self.stock_repo = StockRepository(session)
+
+    async def get_watchlist(self, user_id: int) -> list[WatchlistWithLatestSignal]:
+        symbols = await self.watchlist_repo.get_symbols_by_user(user_id)
+        if not symbols:
+            return []
+
+        # Subquery: latest date per symbol
+        subq = (
+            select(
+                StockDailyData.symbol,
+                StockDailyData.record_date,
+                StockDailyData.close_price,
+                StockDailyData.volume,
+                StockDailyData.signal,
+                StockDailyData.prev_price,
+            )
+            .where(StockDailyData.symbol.in_(symbols))
+            .order_by(StockDailyData.symbol, StockDailyData.record_date.desc())
+            .distinct(StockDailyData.symbol)
+        )
+
+        result = await self.session.execute(subq)
+        rows = result.all()
+
+        items: list[WatchlistWithLatestSignal] = []
+        for row in rows:
+            close_price = float(row.close_price) if row.close_price is not None else None
+            prev_price = float(row.prev_price) if row.prev_price is not None else None
+            change_pct = None
+            if close_price is not None and prev_price is not None and prev_price > 0:
+                change_pct = ((close_price - prev_price) / prev_price) * 100
+
+            items.append(
+                WatchlistWithLatestSignal(
+                    symbol=row.symbol,
+                    latest_signal=row.signal,
+                    latest_date=row.record_date,
+                    close_price=close_price,
+                    volume=row.volume,
+                    change_pct=change_pct,
+                    is_in_watchlist=True,
+                )
+            )
+
+        # Sort by symbol
+        items.sort(key=lambda x: x.symbol)
+        return items
+
+    async def add_symbol(self, user_id: int, symbol: str) -> WatchlistItem:
+        normalized = symbol.strip().upper()
+        # Verify symbol exists in stocks table
+        all_symbols = await self.stock_repo.get_all_symbols()
+        if normalized not in all_symbols:
+            raise ValueError(f"Không tìm thấy mã {normalized}")
+
+        try:
+            item = await self.watchlist_repo.add(user_id, normalized)
+            await self.session.commit()
+        except IntegrityError:
+            await self.session.rollback()
+            raise ValueError(f"Mã {normalized} đã có trong danh sách theo dõi") from None
+        return WatchlistItem.model_validate(item)
+
+    async def remove_symbol(self, user_id: int, symbol: str) -> bool:
+        normalized = symbol.strip().upper()
+        deleted = await self.watchlist_repo.remove(user_id, normalized)
+        await self.session.commit()
+        return deleted

@@ -65,3 +65,17 @@ class StockDailyData(Base, TimestampMixin):
         Index("idx_daily_symbol_date", "symbol", "record_date"),
         Index("idx_daily_source_id", "source_id"),
     )
+
+
+class Watchlist(Base, TimestampMixin):
+    __tablename__ = "watchlists"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    symbol: Mapped[str] = mapped_column(String(20), ForeignKey("stocks.symbol", ondelete="CASCADE"), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "symbol", name="uq_user_symbol"),
+        Index("idx_watchlist_user", "user_id"),
+        Index("idx_watchlist_symbol", "symbol"),
+    )

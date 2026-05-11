@@ -30,6 +30,8 @@ export const stocksResponseSchema = z.object({
   symbols: z.array(z.string()),
 });
 
+export type StocksResponse = z.infer<typeof stocksResponseSchema>;
+
 export const dbotTokenSchema = z.object({
   id: z.number().int(),
   token: z.string(),
@@ -77,3 +79,22 @@ export interface DbotTokenDisplay {
   updated_at?: string;
   message?: string;
 }
+
+export const watchlistItemSchema = z.object({
+  id: z.number(),
+  symbol: z.string(),
+  created_at: z.string(),
+});
+
+export const watchlistWithSignalSchema = z.object({
+  symbol: z.string(),
+  latest_signal: z.string().nullable(),
+  latest_date: z.string().nullable(),
+  close_price: z.number().nullable(),
+  volume: z.number().nullable(),
+  change_pct: z.number().nullable(),
+  is_in_watchlist: z.boolean(),
+});
+
+export type WatchlistItem = z.infer<typeof watchlistItemSchema>;
+export type WatchlistWithSignal = z.infer<typeof watchlistWithSignalSchema>;

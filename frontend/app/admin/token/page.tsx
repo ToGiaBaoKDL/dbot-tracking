@@ -11,9 +11,10 @@ import { dbotTokenFormSchema, type DbotTokenForm, type DbotTokenDisplay } from "
 import { useFormMessage } from "@/lib/hooks";
 import { KeyRound, Save, Loader2, Eye, EyeOff, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Alert } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PageHeader } from "@/components/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { decodeJwtExp } from "@/lib/jwt";
 
 export default function TokenPage() {
@@ -113,10 +114,12 @@ export default function TokenPage() {
                     <span className="text-xs font-medium text-muted-foreground">
                       {showToken ? "Token" : "Token (ẩn)"}
                     </span>
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setShowToken((prev) => !prev)}
-                      className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-background cursor-pointer"
+                      className="h-auto gap-1 px-2 py-1 text-xs"
                       aria-pressed={showToken}
                       aria-label={showToken ? "Ẩn token" : "Hiện token"}
                     >
@@ -129,7 +132,7 @@ export default function TokenPage() {
                           <Eye className="h-3 w-3" /> Hiện
                         </>
                       )}
-                    </button>
+                    </Button>
                   </div>
                   <div className="mt-2 break-all font-mono text-xs text-foreground">
                     {showToken ? currentToken.token : currentToken.token.slice(0, 20) + "…"}
@@ -159,7 +162,7 @@ export default function TokenPage() {
 
         {message && (
           <Alert variant={isError ? "destructive" : "success"} className="mb-4">
-            {message}
+            <AlertDescription>{message}</AlertDescription>
           </Alert>
         )}
 
@@ -168,13 +171,13 @@ export default function TokenPage() {
             <label htmlFor="token-input" className="block text-sm font-medium text-card-foreground">
               Token xác thực <span className="text-destructive">*</span>
             </label>
-            <textarea
+            <Textarea
               id="token-input"
               {...register("token")}
               rows={4}
               autoComplete="off"
               spellCheck={false}
-              className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              className="mt-1 font-mono"
               placeholder="eyJhbGciOiJIUzI1NiIs…"
             />
             {errors.token && (

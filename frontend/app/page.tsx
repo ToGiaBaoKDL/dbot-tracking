@@ -5,13 +5,14 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SignalsDashboard } from "@/features/signals/signals-dashboard";
-import { Shield, Moon, Sun } from "lucide-react";
+import { Shield, Moon, Sun, Star } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useThemeToggle } from "@/lib/hooks";
 
 export default function HomePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { isDark, handleToggle } = useThemeToggle();
+  const { isDark, handleToggle, mounted } = useThemeToggle();
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -37,33 +38,54 @@ export default function HomePage() {
             DBOT Signals Tracker
           </h1>
           <div className="flex items-center gap-2 sm:gap-4">
-            {isAdmin && (
-              <Link
-                href="/admin/token"
-                className="flex items-center gap-1.5 rounded-md bg-accent px-2 py-1.5 text-xs font-medium text-accent-foreground hover:bg-accent/80 sm:px-3 sm:text-sm"
-              >
-                <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">Admin</span>
-              </Link>
-            )}
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => router.push("/watchlist")}
+              aria-label="Danh sách theo dõi"
+            >
+              <Star className="h-4 w-4" />
+            </Button>
+            {isAdmin && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => router.push("/admin/token")}
+                aria-label="Trang quản trị"
+              >
+                <Shield className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
               onClick={handleToggle}
-              className="cursor-pointer rounded-md p-2 text-muted-foreground hover:bg-muted"
               aria-label="Toggle theme"
             >
-              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
-            <button
+              {mounted ? (
+                isDark ? (
+                  <Sun className="h-4 w-4" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )
+              ) : (
+                <span className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={async () => {
                 await signOut({ callbackUrl: "/login" }).catch(() => {});
               }}
-              className="cursor-pointer rounded-md bg-muted px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/80 sm:px-3 sm:text-sm"
             >
               <span className="hidden sm:inline">Đăng xuất</span>
               <span className="sm:hidden">Exit</span>
-            </button>
+            </Button>
           </div>
         </div>
       </header>

@@ -10,7 +10,15 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ArrowUp,
+  ArrowDown,
+  FileDown,
+  Percent,
+  Star,
+} from "lucide-react";
 import { format, parseISO } from "date-fns";
 import type { SignalItem } from "@/lib/schemas";
 import { Button } from "@/components/ui/button";
@@ -21,16 +29,59 @@ interface SignalsTableProps {
   date: string;
   futureDates: string[];
   variant: "buy" | "sell";
+  watchlistSymbols?: string[];
+  onToggleWatchlist?: (symbol: string) => void;
+  togglingSymbol?: string | null;
 }
 
 const PAGE_SIZE = 10;
 
-export function SignalsTable({ title, data, date, futureDates, variant }: SignalsTableProps) {
+function downloadCSV(title: string, data: SignalItem[], date: string, futureDates: string[]) {
+  const headers = [
+    "Mã",
+    "Khối lượng",
+    "Tín hiệu",
+    format(parseISO(date), "dd/MM"),
+    ...futureDates.map((d) => format(parseISO(d), "dd/MM")),
+  ];
+  const rows = data.map((row) => [
+    row.symbol,
+    row.volume?.toString() ?? "",
+    row.signal ?? "",
+    row.price_x?.toString() ?? "",
+    ...(row.future_prices ?? []).map((p) => p?.toFixed(2) ?? ""),
+  ]);
+  const csv = [
+    headers.join(","),
+    ...rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
+  ].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${title.replace(/\s+/g, "_")}_${date}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function SignalsTable({
+  title,
+  data,
+  date,
+  futureDates,
+  variant,
+  watchlistSymbols = [],
+  onToggleWatchlist,
+  togglingSymbol,
+}: SignalsTableProps) {
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: PAGE_SIZE,
   });
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [showPercent, setShowPercent] = useState(false);
 
   // Reset to first page when data changes (new filter / new date)
   useEffect(() => {
@@ -39,6 +90,36 @@ export function SignalsTable({ title, data, date, futureDates, variant }: Signal
 
   const columns = useMemo<ColumnDef<SignalItem>[]>(
     () => [
+      {
+        id: "watchlist",
+        header: "",
+        enableSorting: false,
+        cell: ({ row }) => {
+          const symbol = row.original.symbol;
+          const isInList = watchlistSymbols.includes(symbol);
+          const isLoading = togglingSymbol === symbol;
+          return (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => onToggleWatchlist?.(symbol)}
+              disabled={!onToggleWatchlist || isLoading}
+              aria-label={isInList ? `Xóa ${symbol} khỏi theo dõi` : `Thêm ${symbol} vào theo dõi`}
+              aria-pressed={isInList}
+            >
+              <Star
+                className={`h-3.5 w-3.5 transition-colors ${
+                  isInList
+                    ? "fill-primary text-primary"
+                    : "text-muted-foreground hover:text-primary"
+                }`}
+              />
+            </Button>
+          );
+        },
+      },
       {
         accessorKey: "symbol",
         header: "Mã",
@@ -88,11 +169,27 @@ export function SignalsTable({ title, data, date, futureDates, variant }: Signal
         enableSorting: false,
         cell: ({ row }: { row: { original: SignalItem } }) => {
           const price = row.original.future_prices?.[i];
-          return price?.toFixed(2) ?? "-";
+          if (price == null) return "-";
+
+          if (!showPercent) {
+            return price.toFixed(2);
+          }
+
+          const base = row.original.price_x;
+          if (base == null || base === 0) return "-";
+
+          const pct = ((price - base) / base) * 100;
+          const isPositive = pct >= 0;
+          return (
+            <span className={isPositive ? "text-success" : "text-destructive"}>
+              {isPositive ? "+" : ""}
+              {pct.toFixed(2)}%
+            </span>
+          );
         },
       })),
     ],
-    [futureDates, variant],
+    [futureDates, variant, showPercent, watchlistSymbols, onToggleWatchlist, togglingSymbol],
   );
 
   const table = useReactTable({
@@ -112,7 +209,7 @@ export function SignalsTable({ title, data, date, futureDates, variant }: Signal
 
   return (
     <div className="rounded-lg border border-border bg-card shadow-sm">
-      <div className="border-b border-border px-4 py-3">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <h2
           className={`text-lg font-semibold ${
             variant === "buy" ? "text-success" : "text-destructive"
@@ -120,6 +217,28 @@ export function SignalsTable({ title, data, date, futureDates, variant }: Signal
         >
           {title} ({data.length})
         </h2>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPercent((p) => !p)}
+            className={showPercent ? "bg-muted" : ""}
+            aria-label={showPercent ? "Hiển thị giá" : "Hiển thị % thay đổi"}
+          >
+            <Percent className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => downloadCSV(title, data, date, futureDates)}
+            disabled={data.length === 0}
+            aria-label={`Tải xuống CSV ${title}`}
+          >
+            <FileDown className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -207,9 +326,9 @@ export function SignalsTable({ title, data, date, futureDates, variant }: Signal
               size="sm"
               onClick={() => table.previousPage()}
               disabled={!canPrevious}
+              aria-label="Trang trước"
             >
               <ChevronLeft className="h-4 w-4" />
-              Trước
             </Button>
             <Button
               type="button"
@@ -217,8 +336,8 @@ export function SignalsTable({ title, data, date, futureDates, variant }: Signal
               size="sm"
               onClick={() => table.nextPage()}
               disabled={!canNext}
+              aria-label="Trang sau"
             >
-              Sau
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>

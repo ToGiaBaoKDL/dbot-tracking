@@ -1,20 +1,29 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useSWR from "swr";
 import { apiFetch } from "@/lib/api";
 import { createUserSchema, type CreateUserForm, type UserItem } from "@/lib/schemas";
-import { useFormMessage, useEscapeKey } from "@/lib/hooks";
+import { useFormMessage } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Alert } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PageHeader } from "@/components/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Users, Plus, Loader2, UserCheck, UserX, Crown } from "lucide-react";
 
 export default function UsersPage() {
@@ -30,37 +39,9 @@ export default function UsersPage() {
     }
   }, [status, router]);
 
-  useEscapeKey(() => setShowModal(false), showModal);
-
-  const modalRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!showModal) return;
-    const modal = modalRef.current;
-    if (!modal) return;
-
-    const focusable = modal.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-    );
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    first?.focus();
-
-    const handleTab = (e: KeyboardEvent) => {
-      if (e.key !== "Tab") return;
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last?.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first?.focus();
-      }
-    };
-    modal.addEventListener("keydown", handleTab);
-    return () => modal.removeEventListener("keydown", handleTab);
-  }, [showModal]);
-
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
@@ -135,7 +116,7 @@ export default function UsersPage() {
 
       {message && (
         <Alert variant={isError ? "destructive" : "success"} className="mb-4">
-          {message}
+          <AlertDescription>{message}</AlertDescription>
         </Alert>
       )}
 
@@ -236,99 +217,82 @@ export default function UsersPage() {
         )}
       </div>
 
-      {/* Create User Modal */}
-      {showModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overscroll-contain"
-          onClick={() => setShowModal(false)}
-          aria-hidden="true"
-        >
-          <div
-            ref={modalRef}
-            className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="modal-title"
-          >
-            <h2
-              id="modal-title"
-              className="mb-4 flex items-center gap-2 text-lg font-semibold text-card-foreground"
-            >
+      {/* Create User Dialog */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
               Tạo user mới
-            </h2>
+            </DialogTitle>
+            <DialogDescription>Nhập thông tin để tạo tài khoản mới</DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label
-                  htmlFor="create-username"
-                  className="block text-sm font-medium text-card-foreground"
-                >
-                  Tên đăng nhập <span className="text-destructive">*</span>
-                </label>
-                <Input
-                  id="create-username"
-                  {...register("username")}
-                  type="text"
-                  autoComplete="off"
-                  spellCheck={false}
-                  className="mt-1"
-                />
-                {errors.username && (
-                  <p className="mt-1 text-sm text-destructive">{errors.username.message}</p>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div>
+              <label
+                htmlFor="create-username"
+                className="block text-sm font-medium text-card-foreground"
+              >
+                Tên đăng nhập <span className="text-destructive">*</span>
+              </label>
+              <Input
+                id="create-username"
+                {...register("username")}
+                type="text"
+                autoComplete="off"
+                spellCheck={false}
+                className="mt-1"
+              />
+              {errors.username && (
+                <p className="mt-1 text-sm text-destructive">{errors.username.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label
+                htmlFor="create-password"
+                className="block text-sm font-medium text-card-foreground"
+              >
+                Mật khẩu <span className="text-destructive">*</span>
+              </label>
+              <Input
+                id="create-password"
+                {...register("password")}
+                type="password"
+                autoComplete="new-password"
+                className="mt-1"
+              />
+              {errors.password && (
+                <p className="mt-1 text-sm text-destructive">{errors.password.message}</p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Controller
+                name="is_admin"
+                control={control}
+                render={({ field }) => (
+                  <Checkbox id="is_admin" checked={field.value} onCheckedChange={field.onChange} />
                 )}
-              </div>
+              />
+              <label htmlFor="is_admin" className="text-sm text-card-foreground">
+                Admin
+              </label>
+            </div>
 
-              <div>
-                <label
-                  htmlFor="create-password"
-                  className="block text-sm font-medium text-card-foreground"
-                >
-                  Mật khẩu <span className="text-destructive">*</span>
-                </label>
-                <Input
-                  id="create-password"
-                  {...register("password")}
-                  type="password"
-                  autoComplete="new-password"
-                  className="mt-1"
-                />
-                {errors.password && (
-                  <p className="mt-1 text-sm text-destructive">{errors.password.message}</p>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="is_admin"
-                  {...register("is_admin")}
-                  className="h-4 w-4 rounded border-input bg-background text-primary focus:ring-ring"
-                />
-                <label htmlFor="is_admin" className="text-sm text-card-foreground">
-                  Admin
-                </label>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowModal(false)}
-                >
-                  Hủy
-                </Button>
-                <Button type="submit" disabled={isSubmitting} className="flex-1">
-                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Tạo
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
+                Hủy
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Tạo
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

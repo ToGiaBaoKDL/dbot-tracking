@@ -4,10 +4,12 @@
 
 - **Next.js 16** App Router + **React 19**
 - **Tailwind CSS 4** with semantic CSS variables
+- **shadcn/ui v2** — Radix UI primitives + Tailwind (button, input, select, slider, dialog, checkbox, table, etc.)
 - **TanStack Table** for data tables
 - **SWR** for client-side data fetching
 - **React Hook Form** + **Zod** for form validation
 - **NextAuth.js v4** with Credentials provider + JWT expiry tracking
+- **next-themes** for dark mode
 
 ## Architecture
 
@@ -28,15 +30,23 @@ features/signals/
 ├── signals-dashboard.tsx  # Filter controls + data fetching
 └── signals-table.tsx      # TanStack Table with pagination/sort
 
-components/ui/
+components/ui/          # shadcn/ui v2 components (Radix + Tailwind)
 ├── button.tsx
 ├── input.tsx
 ├── card.tsx
 ├── badge.tsx
-├── select.tsx
-├── slider.tsx
+├── select.tsx          # Radix-based dropdown
+├── slider.tsx          # Radix-based range
 ├── alert.tsx
-└── skeleton.tsx
+├── skeleton.tsx
+├── dialog.tsx          # Modal overlays
+├── sheet.tsx           # Mobile sidebar / drawers
+├── checkbox.tsx        # Radix checkbox
+├── textarea.tsx
+├── label.tsx
+├── separator.tsx
+├── table.tsx
+└── tooltip.tsx
 
 lib/
 ├── api.ts                # apiFetch with auth, timeout, Zod validation

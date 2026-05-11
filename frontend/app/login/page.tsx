@@ -18,7 +18,8 @@ export default function LoginPage() {
   const rawCallback = searchParams.get("callbackUrl") || "/";
   const callbackUrl = (() => {
     try {
-      const u = new URL(rawCallback, window.location.origin);
+      const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost";
+      const u = new URL(rawCallback, origin);
       return u.pathname === rawCallback ? rawCallback : "/";
     } catch {
       return "/";

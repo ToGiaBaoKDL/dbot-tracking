@@ -1,4 +1,4 @@
-.PHONY: up down logs shell-backend shell-airflow migrate init-db dev-backend dev-frontend test-backend test-frontend format lint type-check rebuild-backend clean-docker clean-frontend clean-all deploy-oracle rollback-oracle backup validate-daily validate-overview query-signals query-coverage query-stats query-table create-admin update-password update-dbtoken
+.PHONY: up down logs shell-backend shell-airflow migrate init-db dev-backend dev-frontend test-backend test-frontend format lint type-check rebuild-backend clean-docker clean-frontend clean-all deploy-oracle rollback-oracle backup validate-daily validate-overview query-signals query-coverage query-stats query-table create-admin update-password update-dbtoken send-report
 
 COMPOSE_DEV = docker compose -f docker-compose.dev.yml
 
@@ -100,3 +100,6 @@ update-dbtoken:
 
 query-table:
 	$(COMPOSE_DEV) exec backend python scripts/query_table.py "$(TABLE)" -n $(or $(LIMIT),10)
+
+send-report:
+	$(COMPOSE_DEV) exec backend python scripts/daily_report.py $(ARGS)

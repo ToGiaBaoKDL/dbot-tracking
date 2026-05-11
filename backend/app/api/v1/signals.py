@@ -17,9 +17,10 @@ async def get_signals(
     future_days: int = Query(7, ge=1, le=14),
     symbol: str | None = Query(None, min_length=1, max_length=20),
     signal_type: str = Query("ALL", pattern="^(BUY|SELL|ALL)$"),
+    exclude_dates: list[date] | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     service = SignalService(db)
     signal_types = ["BUY", "SELL"] if signal_type == "ALL" else [signal_type]
-    return await service.get_signals(target_date, future_days, symbol, signal_types)
+    return await service.get_signals(target_date, future_days, symbol, signal_types, exclude_dates)

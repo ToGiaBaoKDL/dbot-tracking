@@ -87,6 +87,8 @@ def transform_dbot_record(raw: dict) -> dict | None:
     record_date = raw.get("recordDate")
     if not symbol or not record_date:
         return None
+    if symbol in INDEX_SYMBOLS:
+        return None
     signal = str(raw.get("signal", "")).strip().upper()
     return {
         "symbol": symbol,

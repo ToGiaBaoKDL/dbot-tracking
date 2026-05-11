@@ -1,22 +1,32 @@
 import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/utils";
 
-interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: "default" | "secondary" | "destructive" | "success" | "outline";
+const badgeVariants = cva(
+  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  {
+    variants: {
+      variant: {
+        default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
+        secondary:
+          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        destructive:
+          "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
+        success: "border-transparent bg-success text-success-foreground hover:bg-success/80",
+        outline: "text-foreground",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  },
+);
+
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
+
+function Badge({ className, variant, ...props }: BadgeProps) {
+  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
 }
 
-export function Badge({ className = "", variant = "default", ...props }: BadgeProps) {
-  const variants: Record<string, string> = {
-    default: "bg-primary/10 text-primary hover:bg-primary/20",
-    secondary: "bg-muted text-muted-foreground hover:bg-muted/80",
-    destructive: "bg-destructive/10 text-destructive hover:bg-destructive/20",
-    success: "bg-success/15 text-success hover:bg-success/25",
-    outline: "border border-border text-foreground hover:bg-muted",
-  };
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${variants[variant]} ${className}`}
-      {...props}
-    />
-  );
-}
+export { Badge, badgeVariants };

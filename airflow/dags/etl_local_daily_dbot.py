@@ -30,6 +30,12 @@ _IMAGE = os.environ.get("DBOT_BACKEND_IMAGE", "toilachuoituyet/dbot-backend:late
 _ETL_ENV = {
     "DATABASE_URL": os.environ.get("DATABASE_URL", ""),
     "SECRET_KEY": os.environ.get("SECRET_KEY", ""),
+    "SMTP_HOST": os.environ.get("SMTP_HOST", "smtp.gmail.com"),
+    "SMTP_PORT": os.environ.get("SMTP_PORT", "465"),
+    "SMTP_USER": os.environ.get("SMTP_USER", ""),
+    "SMTP_PASSWORD": os.environ.get("SMTP_PASSWORD", ""),
+    "EMAIL_FROM": os.environ.get("EMAIL_FROM", ""),
+    "EMAIL_TO": os.environ.get("EMAIL_TO", ""),
 }
 
 
@@ -77,4 +83,17 @@ with DAG(
     )
     validate.template_fields = run_etl.template_fields
 
-    run_etl >> validate
+    notify = DockerOperator(
+        task_id="send_daily_report",
+        image=_IMAGE,
+        command="python scripts/daily_report.py",
+        docker_url="unix://var/run/docker.sock",
+        network_mode=_NETWORK_NAME,
+        environment=_ETL_ENV,
+        auto_remove="success",
+        mount_tmp_dir=False,
+        execution_timeout=timedelta(minutes=5),
+    )
+    notify.template_fields = run_etl.template_fields
+
+    run_etl >> validate >> notify

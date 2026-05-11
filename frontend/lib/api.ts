@@ -66,6 +66,11 @@ export async function apiFetch<T>(
       throw new Error(errMsg);
     }
 
+    // 204 No Content — no body to parse
+    if (res.status === 204) {
+      return undefined as T;
+    }
+
     const contentType = res.headers.get("content-type") || "";
     if (!contentType.includes("application/json")) {
       throw new Error("Định dạng phản hồi API không hợp lệ");
@@ -86,6 +91,15 @@ export async function apiFetch<T>(
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
       throw new Error("Yêu cầu đã hết thời gian chờ");
+    }
+    // Log network-level errors for debugging
+    if (err instanceof TypeError) {
+      console.error(
+        `[CLIENT] Network error: ${err.message} | URL: ${url} | Method: ${rest.method || "GET"}`,
+      );
+      throw new Error(
+        `Không thể kết nối đến server (${err.message}). Vui lòng kiểm tra backend đã chạy chưa.`,
+      );
     }
     throw err;
   } finally {

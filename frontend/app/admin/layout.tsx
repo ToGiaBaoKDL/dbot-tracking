@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { KeyRound, Users, LayoutDashboard, LogOut, Menu, X, Moon, Sun } from "lucide-react";
-import { useThemeToggle, useEscapeKey } from "@/lib/hooks";
+import { useThemeToggle } from "@/lib/hooks";
+import { Button } from "@/components/ui/button";
 
 const navItems = [
   { href: "/admin/token", label: "DBOT Token", icon: KeyRound },
@@ -16,9 +17,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const { data: session } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { isDark, handleToggle } = useThemeToggle();
-
-  useEscapeKey(() => setIsMobileMenuOpen(false), isMobileMenuOpen);
+  const { isDark, handleToggle, mounted } = useThemeToggle();
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -42,14 +41,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <LayoutDashboard className="h-5 w-5" />
             DBOT Admin
           </Link>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="icon"
             onClick={() => setIsMobileMenuOpen(false)}
-            className="cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-muted lg:hidden"
+            className="lg:hidden"
             aria-label="Close menu"
           >
             <X className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto p-4">
@@ -77,24 +78,34 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <div className="shrink-0 border-t border-border p-4">
           <div className="flex items-center gap-2">
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={handleToggle}
-              className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
+              className="gap-2"
             >
-              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              {isDark ? "Light" : "Dark"}
-            </button>
-            <button
+              {mounted ? (
+                <>
+                  {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  {isDark ? "Light" : "Dark"}
+                </>
+              ) : (
+                <span className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={async () => {
                 await signOut({ callbackUrl: "/login" }).catch(() => {});
               }}
-              className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
+              className="gap-2"
             >
               <LogOut className="h-4 w-4" />
               Đăng xuất
-            </button>
+            </Button>
           </div>
         </div>
       </aside>
@@ -103,14 +114,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <main className="flex-1 overflow-auto">
         {/* Mobile header */}
         <div className="flex h-14 items-center border-b border-border bg-card px-4 lg:hidden">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="icon"
             onClick={() => setIsMobileMenuOpen(true)}
-            className="cursor-pointer rounded-md p-2 text-muted-foreground hover:bg-muted"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
-          </button>
+          </Button>
           <span className="ml-3 text-lg font-bold text-card-foreground">DBOT Admin</span>
         </div>
 

@@ -4,15 +4,25 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
+import { Plus, X } from "lucide-react";
 import useSWR from "swr";
 import { apiFetch } from "@/lib/api";
 import { SignalsTable } from "./signals-table";
-import { signalsDataSchema } from "@/lib/schemas";
+import { z } from "zod";
+import { signalsDataSchema, watchlistWithSignalSchema } from "@/lib/schemas";
 import type { SignalsData, SignalType } from "@/lib/schemas";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Alert } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useDebouncedCallback } from "@/lib/hooks";
 
 function getValidSignalType(value: string | null): SignalType {
@@ -24,6 +34,10 @@ function getValidFutureDays(value: string | null): number {
   const n = Number(value);
   if (!Number.isNaN(n) && n >= 1 && n <= 14) return n;
   return 7;
+}
+
+function formatDateDMY(iso: string): string {
+  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 }
 
 export function SignalsDashboard() {
@@ -42,12 +56,19 @@ export function SignalsDashboard() {
   const committedFutureDays = getValidFutureDays(searchParams.get("future_days"));
   const committedSignalType = getValidSignalType(searchParams.get("signal_type"));
   const committedSymbol = searchParams.get("symbol") || "";
+  const committedExcludedDates =
+    searchParams
+      .get("exclude_dates")
+      ?.split(",")
+      .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)) ?? [];
 
   // ── Display state: local buffer for interactive inputs ──
   const [dateInput, setDateInput] = useState(committedDate);
   const [signalTypeInput, setSignalTypeInput] = useState<SignalType>(committedSignalType);
   const [symbolInput, setSymbolInput] = useState(committedSymbol);
   const [sliderValue, setSliderValue] = useState(committedFutureDays);
+  const [excludeInput, setExcludeInput] = useState("");
+  const [togglingSymbol, setTogglingSymbol] = useState<string | null>(null);
 
   // Sync display state when URL changes (browser back/forward / external navigation)
   useEffect(() => {
@@ -57,6 +78,50 @@ export function SignalsDashboard() {
     setSymbolInput(searchParams.get("symbol") || "");
     setSliderValue(getValidFutureDays(searchParams.get("future_days")));
   }, [searchParams, today]);
+
+  // ── Watchlist for inline star toggles ──
+  const { data: watchlistData, mutate: mutateWatchlist } = useSWR(
+    session?.accessToken ? ["/api/v1/watchlist", session.accessToken] : null,
+    ([path, token]: [string, string]) =>
+      apiFetch(path, token, { schema: z.array(watchlistWithSignalSchema) }),
+    { revalidateOnFocus: false },
+  );
+
+  const watchlistSymbols = useMemo(() => {
+    if (!watchlistData || !Array.isArray(watchlistData)) return [];
+    return watchlistData.map((w: { symbol: string }) => w.symbol);
+  }, [watchlistData]);
+
+  const [watchlistError, setWatchlistError] = useState<string | null>(null);
+
+  const handleToggleWatchlist = useCallback(
+    async (symbol: string) => {
+      if (!session?.accessToken) return;
+      const isInList = watchlistSymbols.includes(symbol);
+      setTogglingSymbol(symbol);
+      setWatchlistError(null);
+      try {
+        if (isInList) {
+          await apiFetch(`/api/v1/watchlist/${symbol}`, session.accessToken, {
+            method: "DELETE",
+          });
+        } else {
+          await apiFetch("/api/v1/watchlist", session.accessToken, {
+            method: "POST",
+            body: JSON.stringify({ symbol }),
+          });
+        }
+        mutateWatchlist();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Lỗi không xác định";
+        setWatchlistError(msg);
+        console.error("[CLIENT] Watchlist toggle error:", err);
+      } finally {
+        setTogglingSymbol(null);
+      }
+    },
+    [session?.accessToken, watchlistSymbols, mutateWatchlist],
+  );
 
   // ── updateQuery: NEVER depend on searchParams to avoid feedback loops ──
   const searchParamsRef = useRef(searchParams);
@@ -112,6 +177,22 @@ export function SignalsDashboard() {
     updateQuery({ future_days: String(sliderValue) });
   };
 
+  const handleAddExclude = () => {
+    if (!excludeInput) return;
+    if (committedExcludedDates.includes(excludeInput)) {
+      setExcludeInput("");
+      return;
+    }
+    const next = [...committedExcludedDates, excludeInput].sort();
+    updateQuery({ exclude_dates: next.join(",") });
+    setExcludeInput("");
+  };
+
+  const handleRemoveExclude = (date: string) => {
+    const next = committedExcludedDates.filter((d) => d !== date);
+    updateQuery({ exclude_dates: next.join(",") });
+  };
+
   // ── API path derived from committed URL values only ──
   const path = useMemo(() => {
     const params = new URLSearchParams();
@@ -121,8 +202,15 @@ export function SignalsDashboard() {
     if (committedSymbol.trim()) {
       params.set("symbol", committedSymbol.trim());
     }
+    committedExcludedDates.forEach((d) => params.append("exclude_dates", d));
     return `/api/v1/signals?${params.toString()}`;
-  }, [committedDate, committedFutureDays, committedSignalType, committedSymbol]);
+  }, [
+    committedDate,
+    committedFutureDays,
+    committedSignalType,
+    committedSymbol,
+    committedExcludedDates,
+  ]);
 
   const { data, error } = useSWR<SignalsData>(
     session?.accessToken ? [path, session.accessToken] : null,
@@ -140,7 +228,7 @@ export function SignalsDashboard() {
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
+      <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
         <div>
           <label htmlFor="date-filter" className="block text-sm font-medium text-card-foreground">
             Ngày
@@ -152,6 +240,7 @@ export function SignalsDashboard() {
             max={today}
             onChange={(e) => handleDateChange(e.target.value)}
             className="mt-1 w-auto"
+            suppressHydrationWarning
           />
         </div>
 
@@ -160,14 +249,17 @@ export function SignalsDashboard() {
             Tín hiệu
           </label>
           <Select
-            id="signal-type"
             value={signalTypeInput}
-            onChange={(e) => handleSignalTypeChange(e.target.value as SignalType)}
-            className="mt-1"
+            onValueChange={(v: string) => handleSignalTypeChange(v as SignalType)}
           >
-            <option value="ALL">Tất cả</option>
-            <option value="BUY">MUA</option>
-            <option value="SELL">BÁN</option>
+            <SelectTrigger id="signal-type" className="mt-1 w-auto">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Tất cả</SelectItem>
+              <SelectItem value="BUY">MUA</SelectItem>
+              <SelectItem value="SELL">BÁN</SelectItem>
+            </SelectContent>
           </Select>
         </div>
 
@@ -190,33 +282,80 @@ export function SignalsDashboard() {
           <label htmlFor="future-days" className="block text-sm font-medium text-card-foreground">
             Số ngày hiển thị (1-14)
           </label>
-          <Slider
-            id="future-days"
-            min={1}
-            max={14}
-            value={sliderValue}
-            onChange={(e) => handleSliderChange(Number(e.target.value))}
-            onMouseUp={handleSliderCommit}
-            onTouchEnd={handleSliderCommit}
-            onKeyUp={(e) => {
-              if (
-                e.key === "ArrowLeft" ||
-                e.key === "ArrowRight" ||
-                e.key === "ArrowUp" ||
-                e.key === "ArrowDown"
-              ) {
-                handleSliderCommit();
-              }
-            }}
-            aria-label="Số ngày hiển thị giá tương lai"
-            label={`${sliderValue} ngày`}
-          />
+          <div className="mt-1 flex h-9 items-center gap-3">
+            <Slider
+              id="future-days"
+              value={[sliderValue]}
+              onValueChange={([v]: number[]) => handleSliderChange(v)}
+              onValueCommit={() => handleSliderCommit()}
+              min={1}
+              max={14}
+              step={1}
+              className="w-40"
+              aria-label="Số ngày hiển thị giá tương lai"
+            />
+            <span className="w-12 text-sm font-medium tabular-nums text-card-foreground">
+              {sliderValue}
+            </span>
+          </div>
         </div>
+      </div>
+
+      {/* Excluded holidays */}
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3 shadow-sm">
+        <span className="text-sm font-medium text-muted-foreground">Ngày nghỉ lễ</span>
+        <Input
+          type="date"
+          value={excludeInput}
+          onChange={(e) => setExcludeInput(e.target.value)}
+          className="h-8 w-auto px-2 py-1 text-sm"
+          aria-label="Chọn ngày nghỉ lễ"
+        />
+
+        {committedExcludedDates.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {committedExcludedDates.map((d) => (
+              <Badge key={d} variant="secondary" className="gap-1 text-xs">
+                {formatDateDMY(d)}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleRemoveExclude(d)}
+                  className="h-4 w-4"
+                  aria-label={`Xóa ngày ${d}`}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
+          onClick={handleAddExclude}
+          disabled={!excludeInput}
+          aria-label="Thêm ngày nghỉ lễ"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
       </div>
 
       {error && (
         <Alert variant="destructive">
-          {error instanceof Error ? error.message : "Lỗi không xác định"}
+          <AlertDescription>
+            {error instanceof Error ? error.message : "Lỗi không xác định"}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {watchlistError && (
+        <Alert variant="destructive">
+          <AlertDescription>{watchlistError}</AlertDescription>
         </Alert>
       )}
 
@@ -229,6 +368,9 @@ export function SignalsDashboard() {
               date={data.date}
               futureDates={data.future_dates}
               variant="buy"
+              watchlistSymbols={watchlistSymbols}
+              onToggleWatchlist={handleToggleWatchlist}
+              togglingSymbol={togglingSymbol}
             />
           )}
           {showSell && (
@@ -238,6 +380,9 @@ export function SignalsDashboard() {
               date={data.date}
               futureDates={data.future_dates}
               variant="sell"
+              watchlistSymbols={watchlistSymbols}
+              onToggleWatchlist={handleToggleWatchlist}
+              togglingSymbol={togglingSymbol}
             />
           )}
         </div>
