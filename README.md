@@ -75,6 +75,7 @@ See [docs/development](docs/development/) for full development guide.
 | Frontend | Next.js 16, React 19, Tailwind CSS 4, TanStack Table, SWR, React Hook Form + Zod, NextAuth v4 |
 | CI/CD | GitHub Actions, Docker Hub |
 | Deploy | Oracle Cloud Free Tier + Cloudflare Tunnel |
+| Infra (IaC) | Terraform, OCI Provider |
 
 ## Documentation
 
@@ -82,6 +83,7 @@ See [docs/development](docs/development/) for full development guide.
 |-------|------|
 | Development | [docs/development](docs/development/) |
 | Deploy — Oracle Cloud | [docs/deploy/oracle-cloud.md](docs/deploy/oracle-cloud.md) |
+| Deploy — Terraform | [docs/deploy/terraform.md](docs/deploy/terraform.md) |
 | API Reference | [docs/api](docs/api/) |
 | Frontend | [docs/frontend](docs/frontend/) |
 | Airflow | [docs/airflow](docs/airflow/) |

@@ -4,7 +4,7 @@ Production deploy guide for Oracle Cloud Always Free tier.
 
 ## Why Oracle Cloud?
 
-- **Always Free**: 2 AMD VM instances + 200 GB block storage
+- **Always Free**: Up to 4 OCPU + 24 GB RAM (Arm Ampere A1) + 200 GB block storage
 - **No open ports needed**: Cloudflare Tunnel handles all inbound traffic
 - **Total cost: $0/month**
 
@@ -32,35 +32,52 @@ flowchart LR
 
 ## Step 1: Create Oracle Cloud VM
 
+**Option A — Terraform (recommended):**
+
+See [`docs/deploy/terraform.md`](./terraform.md) for Infrastructure-as-Code setup. This creates the VM, VCN, subnet, security rules, and Object Storage bucket in one command.
+
+**Option B — Manual:**
+
 1. Sign up at [cloud.oracle.com](https://cloud.oracle.com)
 2. Create an **Always Free** Compute instance:
    - **Shape**: VM.Standard.A1.Flex (Arm, **2 OCPU + 12 GB RAM**)
    - **Image**: Canonical Ubuntu 22.04
-   - **Boot volume**: 50 GB
+   - **Boot volume**: 100 GB
 3. Note the **Public IP** and download the private key
 
 > **Tip:** Oracle Free Tier gives you 4 OCPU + 24 GB RAM total. Using 2 OCPU + 12 GB leaves plenty of headroom for this app while keeping resources available for other projects.
 
 ## Step 2: Initial Server Hardening
 
+**Recommended:** Use `cloud-init` (paste into Oracle Console when creating the instance):
+
+1. In Oracle Console → Create Instance → **Show advanced options**
+2. Paste the contents of [`scripts/cloud-init.yaml`](../../scripts/cloud-init.yaml) into the **Cloud-init script** field
+3. The VM will auto-harden on first boot
+
+**Alternative:** Manual hardening after SSH:
+
 ```bash
 ssh-copy-id -i ~/.ssh/oracle_key ubuntu@YOUR_ORACLE_IP
 ssh -i ~/.ssh/oracle_key ubuntu@YOUR_ORACLE_IP
 
-curl -fsSL https://raw.githubusercontent.com/YOUR_REPO/dbot-tracking/main/scripts/setup-oracle.sh | sudo bash
+# Download and run setup script
+curl -fsSL https://raw.githubusercontent.com/YOUR_REPO/dbot-tracking/main/scripts/setup-oracle.sh -o /tmp/setup-oracle.sh
+chmod +x /tmp/setup-oracle.sh
+sudo bash /tmp/setup-oracle.sh
 ```
 
-This script will:
-- Update system packages
-- Disable password & root SSH login
-- Configure UFW firewall (deny all incoming)
-- Install fail2ban
-- Install Docker + Docker Compose
-- Setup 2 GB swap
-- Configure Docker log rotation
-- Enable automatic security updates
+What gets configured:
+- System packages updated
+- SSH: password auth disabled, root login disabled, key-only auth
+- UFW: deny all incoming, allow SSH only
+- fail2ban on SSH
+- Docker + Docker Compose
+- 2 GB swap
+- Docker log rotation
+- Automatic security updates
 
-> **⚠️ Important:** The setup script disables SSH password authentication. Make sure your SSH key is working before disconnecting.
+> **⚠️ Important:** SSH password authentication is disabled. Verify your SSH key works before disconnecting.
 
 ## Step 3: Clone Repository
 
@@ -77,7 +94,10 @@ cp .env.example .env
 #   - SECRET_KEY: generate with `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`
 #   - POSTGRES_PASSWORD: strong password
 #   - CORS_ORIGINS: your Vercel domain
+#   - REGISTRATION_DISABLED: true (disable public registration)
 #   - CF_TUNNEL_TOKEN: from Cloudflare Tunnel setup (see Step 6)
+#   - DOCKER_GID: run `getent group docker | cut -d: -f3` on the VM
+#   - AIRFLOW_ADMIN_USER / AIRFLOW_ADMIN_PASSWORD: Airflow web UI credentials
 #   - OOS_ACCESS_KEY, OOS_SECRET_KEY, OOS_NAMESPACE, OOS_REGION, OOS_BUCKET: for backups
 nano .env
 ```
@@ -117,7 +137,7 @@ make rollback-oracle
 
 ## Step 7: Deploy Frontend to Vercel
 
-Frontend deploys automatically via GitHub Actions on every push to `main`.
+Frontend deploys automatically via GitHub Actions when pushing to `main` with `deploy:` or `deploy(fe)` in the commit message.
 
 1. Create a Vercel project and link it locally:
    ```bash
@@ -140,16 +160,21 @@ Trigger initial data backfill from Airflow UI: `https://airflow.yourdomain.com`
 ## Step 9: Automated Backups
 
 ```bash
+# Create log directory
+mkdir -p /opt/dbot-tracking/logs
+
 # Add to crontab (runs daily at 3 AM)
-(crontab -l 2>/dev/null; echo "0 3 * * * /opt/dbot-tracking/scripts/backup.sh >> /var/log/dbot-backup.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "0 3 * * * /opt/dbot-tracking/scripts/backup.sh >> /opt/dbot-tracking/logs/backup.log 2>&1") | crontab -
 ```
 
 Backups are streamed directly to **Oracle Object Storage** — no local copy is retained.
 
 ### Oracle Object Storage Setup
 
+> **If you used Terraform:** The bucket `dbot-backups` is already created. Skip step 2. Get `OOS_NAMESPACE` and `OOS_BUCKET` from Terraform outputs (`bucket_namespace`, `bucket_name`).
+
 1. OCI Console → **Identity** → **Users** → **Customer Secret Keys** → Generate Key
-2. **Storage** → **Buckets** → Create Bucket (Standard, same region as VM)
+2. **Storage** → **Buckets** → Create Bucket (Standard, same region as VM) — skip if created by Terraform
 3. Add to `.env`:
    ```
    OOS_ACCESS_KEY=your-access-key
@@ -173,7 +198,7 @@ Backups are streamed directly to **Oracle Object Storage** — no local copy is 
 | `ORACLE_SSH_KEY` | Private key content (entire file) |
 | `ORACLE_API_DOMAIN` | Domain serving the backend API |
 
-Deploy triggers on push to `main` containing `deploy:`, `deploy(be)`, or `deploy(fe)` in the commit message (or manual `workflow_dispatch`).
+Backend deploy triggers on `deploy:` or `deploy(be)` in the commit message. Frontend deploy triggers on `deploy:` or `deploy(fe)`. Manual `workflow_dispatch` works for both.
 
 ### Frontend Secrets (Vercel)
 
@@ -211,6 +236,13 @@ sudo fallocate -l 4G /swapfile2 && sudo chmod 600 /swapfile2 && sudo mkswap /swa
 ```bash
 cd /opt/dbot-tracking
 docker compose -f docker-compose.prod.yml logs -f
+```
+
+**Verify tunnel is working:**
+```bash
+# From your local machine
+curl --fail https://api.yourdomain.com/health
+curl --fail https://airflow.yourdomain.com/health
 ```
 
 **Locked out of SSH:**

@@ -17,6 +17,9 @@ DB_USER="${POSTGRES_USER:-postgres}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 TMP_BACKUP="/tmp/${DB_NAME}_${TIMESTAMP}.sql.gz"
 
+# Cleanup temp file on exit (even on failure)
+trap 'rm -f "$TMP_BACKUP"' EXIT
+
 echo "[$(date)] Starting backup..."
 
 # ---------------------------------------------------------------------------

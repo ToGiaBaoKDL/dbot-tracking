@@ -184,6 +184,15 @@ make init-db
 ├── docker/
 │   └── postgres/
 │       └── init.sql      Auto-create airflow DB
+├── infrastructure/
+│   └── terraform/        Oracle Cloud IaC (instance + bucket)
+│       ├── modules/
+│       │   ├── compute/  VCN, subnet, security list, instance
+│       │   └── object_storage/
+│       ├── main.tf
+│       ├── variables.tf
+│       ├── outputs.tf
+│       └── terraform.tfvars.example
 ├── docker-compose.dev.yml    Local dev
 ├── docker-compose.prod.yml   Production (Oracle Cloud)
 ├── Makefile                  Dev commands (uv + npm)

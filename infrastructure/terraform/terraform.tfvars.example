@@ -1,0 +1,34 @@
+# =============================================================================
+# Terraform Variables Example
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored — never commit it.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# OCI Authentication (from ~/.oci/config or OCI Console)
+# ---------------------------------------------------------------------------
+tenancy_ocid     = "ocid1.tenancy.oc1..xxxxxxxx"
+user_ocid        = "ocid1.user.oc1..xxxxxxxx"
+fingerprint      = "xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx"
+private_key_path = "~/.oci/oci_api_key.pem"
+region           = "ap-singapore-1"
+
+# ---------------------------------------------------------------------------
+# Compartment
+# ---------------------------------------------------------------------------
+compartment_ocid = "ocid1.compartment.oc1..xxxxxxxx"
+
+# ---------------------------------------------------------------------------
+# Compute (optional — defaults are Free Tier friendly)
+# ---------------------------------------------------------------------------
+# ssh_public_key_path = "~/.ssh/id_rsa.pub"
+# instance_shape      = "VM.Standard.A1.Flex"
+# instance_ocpus      = 2
+# instance_memory_in_gbs = 12
+# boot_volume_size    = 100
+
+# ---------------------------------------------------------------------------
+# Object Storage
+# ---------------------------------------------------------------------------
+# bucket_name         = "dbot-backups"

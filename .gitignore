@@ -26,3 +26,11 @@ build/
 *~
 *.egg-info/
 *.tsbuildinfo
+
+# Terraform
+*.tfvars
+.terraform/
+terraform.tfstate
+terraform.tfstate.*.backup
+.terraform.lock.hcl
+*.tfplan

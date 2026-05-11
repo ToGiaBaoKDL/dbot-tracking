@@ -98,7 +98,7 @@ mkdir -p /opt/dbot-tracking
 chown "$USERNAME:$USERNAME" /opt/dbot-tracking
 
 # ---------------------------------------------------------------------------
-# 7. Swap (critical for 1 GB RAM VM)
+# 7. Swap (critical for low-RAM VMs)
 # ---------------------------------------------------------------------------
 echo "[6/8] Setting up swap..."
 if ! swapon --show | grep -q "/swapfile"; then
