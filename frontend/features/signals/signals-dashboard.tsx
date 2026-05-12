@@ -12,6 +12,7 @@ import { z } from "zod";
 import { signalsDataSchema, watchlistWithSignalSchema } from "@/lib/schemas";
 import type { SignalsData, SignalType } from "@/lib/schemas";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -230,18 +231,10 @@ export function SignalsDashboard() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
         <div>
-          <label htmlFor="date-filter" className="block text-sm font-medium text-card-foreground">
-            Ngày
-          </label>
-          <Input
-            id="date-filter"
-            type="date"
-            value={dateInput}
-            max={today}
-            onChange={(e) => handleDateChange(e.target.value)}
-            className="mt-1 w-auto"
-            suppressHydrationWarning
-          />
+          <span className="block text-sm font-medium text-card-foreground">Ngày</span>
+          <div className="mt-1">
+            <DatePicker value={dateInput} max={today} onChange={handleDateChange} />
+          </div>
         </div>
 
         <div>
@@ -299,50 +292,46 @@ export function SignalsDashboard() {
             </span>
           </div>
         </div>
-      </div>
 
-      {/* Excluded holidays */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3 shadow-sm">
-        <span className="text-sm font-medium text-muted-foreground">Ngày nghỉ lễ</span>
-        <Input
-          type="date"
-          value={excludeInput}
-          onChange={(e) => setExcludeInput(e.target.value)}
-          className="h-8 w-auto px-2 py-1 text-sm"
-          aria-label="Chọn ngày nghỉ lễ"
-        />
+        <div className="w-full" />
 
-        {committedExcludedDates.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {committedExcludedDates.map((d) => (
-              <Badge key={d} variant="secondary" className="gap-1 text-xs">
-                {formatDateDMY(d)}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleRemoveExclude(d)}
-                  className="h-4 w-4"
-                  aria-label={`Xóa ngày ${d}`}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </Badge>
-            ))}
-          </div>
-        )}
+        {/* Ngày nghỉ lễ */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium text-card-foreground">Ngày nghỉ lễ</span>
+          <DatePicker value={excludeInput} onChange={setExcludeInput} placeholder="Chọn ngày" />
 
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
-          onClick={handleAddExclude}
-          disabled={!excludeInput}
-          aria-label="Thêm ngày nghỉ lễ"
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </Button>
+          {committedExcludedDates.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {committedExcludedDates.map((d) => (
+                <Badge key={d} variant="secondary" className="gap-1 text-xs">
+                  {formatDateDMY(d)}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleRemoveExclude(d)}
+                    className="h-4 w-4"
+                    aria-label={`Xóa ngày ${d}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={handleAddExclude}
+            disabled={!excludeInput}
+            aria-label="Thêm ngày nghỉ lễ"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
 
       {error && (

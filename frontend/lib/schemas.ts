@@ -98,3 +98,13 @@ export const watchlistWithSignalSchema = z.object({
 
 export type WatchlistItem = z.infer<typeof watchlistItemSchema>;
 export type WatchlistWithSignal = z.infer<typeof watchlistWithSignalSchema>;
+
+export const stockHistoryItemSchema = z.object({
+  symbol: z.string(),
+  record_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  close_price: z.number().nullable(),
+  volume: z.number().nullable(),
+  signal: z.string().nullable(),
+});
+
+export type StockHistoryItem = z.infer<typeof stockHistoryItemSchema>;

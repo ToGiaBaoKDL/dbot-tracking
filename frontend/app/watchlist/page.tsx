@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useThemeToggle } from "@/lib/hooks";
 import useSWR from "swr";
 import { apiFetch } from "@/lib/api";
 import { z } from "zod";
@@ -13,6 +12,7 @@ import {
   type WatchlistWithSignal,
 } from "@/lib/schemas";
 import { useFormMessage } from "@/lib/hooks";
+import { AppHeader } from "@/components/app-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -35,19 +35,13 @@ import {
   Minus,
   Search,
   Star,
-  BarChart3,
   X,
   Loader2,
-  Moon,
-  Sun,
-  LogOut,
-  Shield,
 } from "lucide-react";
 
 export default function WatchlistPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { isDark, handleToggle, mounted } = useThemeToggle();
   const { message, isError, setSuccess, setError, clear } = useFormMessage();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [symbolInput, setSymbolInput] = useState("");
@@ -134,7 +128,7 @@ export default function WatchlistPage() {
   };
 
   const handleViewSignals = (symbol: string) => {
-    router.push(`/?symbol=${symbol}`);
+    router.push(`/stock/${symbol}`);
   };
 
   if (status === "loading") {
@@ -149,70 +143,9 @@ export default function WatchlistPage() {
     return null;
   }
 
-  const isAdmin = session?.user?.is_admin === true;
-
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-3 sm:px-10 sm:py-4">
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold text-card-foreground sm:text-xl">
-              Danh sách theo dõi
-            </h1>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => router.push("/")}
-              aria-label="Tín hiệu"
-            >
-              <BarChart3 className="h-4 w-4" />
-            </Button>
-            {isAdmin && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => router.push("/admin/token")}
-                aria-label="Trang quản trị"
-              >
-                <Shield className="h-4 w-4" />
-              </Button>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={handleToggle}
-              aria-label="Toggle theme"
-            >
-              {mounted ? (
-                isDark ? (
-                  <Sun className="h-4 w-4" />
-                ) : (
-                  <Moon className="h-4 w-4" />
-                )
-              ) : (
-                <span className="h-4 w-4" />
-              )}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={async () => {
-                await signOut({ callbackUrl: "/login" }).catch(() => {});
-              }}
-            >
-              <span className="hidden sm:inline">Đăng xuất</span>
-              <LogOut className="sm:hidden h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </header>
-
+      <AppHeader />
       <main className="mx-auto max-w-7xl p-4 sm:p-6">
         {message && (
           <Alert variant={isError ? "destructive" : "success"} className="mb-6">

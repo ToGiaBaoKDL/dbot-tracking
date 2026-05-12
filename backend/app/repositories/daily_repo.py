@@ -60,3 +60,11 @@ class StockDailyDataRepository:
             .order_by(StockDailyData.record_date.desc())
         )
         return list(result.scalars().all())
+
+    async def get_history_by_symbol(self, symbol: str) -> list[StockDailyData]:
+        result = await self.session.execute(
+            select(StockDailyData)
+            .where(StockDailyData.symbol == symbol.upper())
+            .order_by(StockDailyData.record_date.desc())
+        )
+        return list(result.scalars().all())

@@ -116,3 +116,12 @@ class WatchlistWithLatestSignal(BaseModel):
     volume: int | None
     change_pct: float | None
     is_in_watchlist: bool = True
+
+
+class StockHistoryItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    symbol: str
+    record_date: date
+    close_price: float | None
+    volume: int | None
+    signal: str | None

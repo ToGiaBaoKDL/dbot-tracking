@@ -16,6 +16,7 @@ from app.repositories.watchlist_repo import WatchlistRepository
 from app.schemas.schemas import (
     SignalItem,
     SignalsResponse,
+    StockHistoryItem,
     WatchlistItem,
     WatchlistWithLatestSignal,
 )
@@ -62,9 +63,23 @@ class AuthService:
 class StockService:
     def __init__(self, session: AsyncSession):
         self.stock_repo = StockRepository(session)
+        self.daily_repo = StockDailyDataRepository(session)
 
     async def get_all_symbols(self) -> list[str]:
         return await self.stock_repo.get_all_symbols()
+
+    async def get_stock_history(self, symbol: str) -> list[StockHistoryItem]:
+        rows = await self.daily_repo.get_history_by_symbol(symbol)
+        return [
+            StockHistoryItem(
+                symbol=r.symbol,
+                record_date=r.record_date,
+                close_price=float(r.close_price) if r.close_price is not None else None,
+                volume=r.volume,
+                signal=r.signal,
+            )
+            for r in rows
+        ]
 
 
 def _get_trading_dates(

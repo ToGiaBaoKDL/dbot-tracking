@@ -94,6 +94,7 @@
 html {
   color-scheme: light;
   background-color: var(--background);
+  overflow-y: scroll;
 }
 
 html.dark {

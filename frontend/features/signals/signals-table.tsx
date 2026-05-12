@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   useReactTable,
   getCoreRowModel,
@@ -76,6 +77,7 @@ export function SignalsTable({
   onToggleWatchlist,
   togglingSymbol,
 }: SignalsTableProps) {
+  const router = useRouter();
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: PAGE_SIZE,
@@ -126,7 +128,13 @@ export function SignalsTable({
         enableSorting: false,
         meta: { frozen: true, offset: 0 },
         cell: ({ row }) => (
-          <span className="font-semibold text-foreground">{row.original.symbol}</span>
+          <button
+            type="button"
+            onClick={() => router.push(`/stock/${row.original.symbol}`)}
+            className="font-semibold text-foreground hover:text-primary hover:underline"
+          >
+            {row.original.symbol}
+          </button>
         ),
       },
       {
